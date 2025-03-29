@@ -31,20 +31,26 @@ if uploaded_file:
         # Filtros en la barra lateral
         st.sidebar.header("🔎 Filtros")
         concepto = st.sidebar.text_input("Filtrar por CONCEPTO")
-        comercio = st.sidebar.text_input("Filtrar por COMERCIO")
-        categoria = st.sidebar.text_input("Filtrar por CATEGORÍA")
-        subcategoria = st.sidebar.text_input("Filtrar por SUBCATEGORÍA")
+
+        comercio_options = df["COMERCIO"].dropna().unique().tolist()
+        comercio = st.sidebar.selectbox("Filtrar por COMERCIO", ["Todos"] + comercio_options)
+
+        categoria_options = df["CATEGORÍA"].dropna().unique().tolist()
+        categoria = st.sidebar.selectbox("Filtrar por CATEGORÍA", ["Todos"] + categoria_options)
+
+        subcategoria_options = df["SUBCATEGORÍA"].dropna().unique().tolist()
+        subcategoria = st.sidebar.selectbox("Filtrar por SUBCATEGORÍA", ["Todos"] + subcategoria_options)
 
         # Aplicar filtros
         filtro = pd.Series([True] * len(df))
         if concepto:
             filtro &= df["CONCEPTO"].str.contains(concepto, case=False, na=False)
-        if comercio:
-            filtro &= df["COMERCIO"].str.contains(comercio, case=False, na=False)
-        if categoria:
-            filtro &= df["CATEGORÍA"].str.contains(categoria, case=False, na=False)
-        if subcategoria:
-            filtro &= df["SUBCATEGORÍA"].str.contains(subcategoria, case=False, na=False)
+        if comercio != "Todos":
+            filtro &= df["COMERCIO"] == comercio
+        if categoria != "Todos":
+            filtro &= df["CATEGORÍA"] == categoria
+        if subcategoria != "Todos":
+            filtro &= df["SUBCATEGORÍA"] == subcategoria
 
         df_filtrado = df[filtro]
 
