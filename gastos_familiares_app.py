@@ -10,22 +10,31 @@ uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
-    df.columns = df.columns.str.upper().str.strip()
+    # Normaliza nombres de columnas
+        renombrar_columnas = {
+            "subcategoria": "SUBCATEGORÍA",
+            "subcategoría": "SUBCATEGORÍA",
+            "concepto": "CONCEPTO",
+            "comercio": "COMERCIO",
+            "categoría": "CATEGORÍA",
+            "categoria": "CATEGORÍA"
+        }
+        df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
 
     columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA"}
     if not columnas_esperadas.issubset(df.columns):
-        st.error(f"❌ Columnas encontradas: {df.columns.tolist()}\n✅ Se esperaban: {list(columnas_esperadas)}")
+        st.error(f"Columnas encontradas: {df.columns.tolist()}\nSe esperaban: {list(columnas_esperadas)}")
     else:
-        st.success("✅ CSV cargado correctamente")
+        st.success("CSV cargado correctamente ✔️")
 
-        # Filtros en la barra lateral
-        st.sidebar.header("🔎 Filtros")
-        concepto = st.sidebar.text_input("Filtrar por CONCEPTO")
-        comercio = st.sidebar.text_input("Filtrar por COMERCIO")
-        categoria = st.sidebar.text_input("Filtrar por CATEGORÍA")
-        subcategoria = st.sidebar.text_input("Filtrar por SUBCATEGORÍA")
+        # Filtros
+        with st.sidebar:
+            st.header("🔎 Filtros")
+            concepto = st.text_input("Concepto contiene:")
+            comercio = st.text_input("Comercio contiene:")
+            categoria = st.text_input("Categoría contiene:")
+            subcategoria = st.text_input("Subcategoría contiene:")
 
-        # Aplicar filtros
         filtro = pd.Series([True] * len(df))
         if concepto:
             filtro &= df["CONCEPTO"].str.contains(concepto, case=False, na=False)
@@ -36,37 +45,21 @@ if uploaded_file:
         if subcategoria:
             filtro &= df["SUBCATEGORÍA"].str.contains(subcategoria, case=False, na=False)
 
-        df_filtrado = df[filtro]
+        filtrado = df[filtro]
+        st.dataframe(filtrado, use_container_width=True)
 
-        # Mostrar tabla
-        st.subheader("📋 Tabla de Transacciones")
-        st.dataframe(df_filtrado, use_container_width=True)
+        # Agrupación y gráfica
+        col1, col2 = st.columns(2)
 
-        # Selector de agrupación para gráfico
-        st.subheader("📊 Gráfica de Distribución")
-        col_grafico = st.selectbox("Agrupar por:", ["CATEGORÍA", "COMERCIO", "SUBCATEGORÍA"])
-
-        # Gráfico de tarta
-        if col_grafico in df.columns:
-            counts = df_filtrado[col_grafico].value_counts()
-            if not counts.empty:
-                fig, ax = plt.subplots(figsize=(6, 6))
-                ax.pie(counts, labels=counts.index, autopct='%1.1f%%', startangle=140)
-                ax.set_title(f'Distribución por {col_grafico}')
+        with col1:
+            opcion_grafica = st.selectbox("📊 Gráfica por:", ["CATEGORÍA", "COMERCIO", "SUBCATEGORÍA"])
+            if opcion_grafica:
+                conteo = filtrado[opcion_grafica].value_counts()
+                fig, ax = plt.subplots()
+                ax.pie(conteo, labels=conteo.index, autopct="%1.1f%%", startangle=140)
+                ax.set_title(f"Distribución por {opcion_grafica}")
                 ax.axis('equal')
                 st.pyplot(fig)
-            else:
-                st.info("No hay datos para graficar con los filtros actuales.")
-        else:
-            st.warning("Columna no válida para agrupar.")
 
-        # Botón de descarga
-        st.download_button(
-            label="💾 Descargar CSV filtrado",
-            data=df_filtrado.to_csv(index=False),
-            file_name="gastos_filtrados.csv",
-            mime="text/csv"
-        )
-else:
-    st.info("👆 Sube un archivo CSV para comenzar.")
-
+        with col2:
+            st.download_button("💾 Descargar CSV filtrado", data=filtrado.to_csv(index=False), file_name="gastos_filtrados.csv", mime="text/csv")
