@@ -114,7 +114,7 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
 
         # Validación de columnas
-        columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
+        columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"} #subcategoria eliminada.
         if not columnas_esperadas.issubset(df.columns):
             faltantes = columnas_esperadas - set(df.columns)
             st.error(f"❌ Faltan columnas: {faltantes}")
@@ -123,6 +123,9 @@ if uploaded_file is not None:
         df['IMPORTE'] = pd.to_numeric(df['IMPORTE'], errors='coerce')
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
         df = df.dropna(subset=['IMPORTE','AÑO','MES','DIA'])
+        #Se añade subcategoria si no existe.
+        if 'SUBCATEGORÍA' not in df.columns:
+            df['SUBCATEGORÍA'] = ""
 
         # RENOMBRAR COLUMNAS
         renombrar_columnas = {
