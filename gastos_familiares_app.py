@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import sqlite3
+from sqlalchemy import create_engine
 
 # Configuración inicial de la aplicación
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
@@ -157,19 +158,12 @@ if uploaded_file is not None:
 
         # INSERCIÓN EN BASE DE DATOS
         with st.spinner("Insertando datos en la base de datos..."):
-            for _, row in df.iterrows():
-                insertar_gasto(
-                    fecha=row['FECHA'],
-                    categoria=row['CATEGORÍA'],
-                    subcategoria=row.get('SUBCATEGORÍA', ''),
-                    comercio=row.get('COMERCIO', ''),
-                    concepto=row.get('CONCEPTO', ''),
-                    importe=row['IMPORTE'],
-                    tipo=row['TIPO'],
-                    año=row['AÑO'],
-                    mes=row['MES'],
-                    dia=row['DIA']
-                )
+            try:
+                engine = create_engine('sqlite:///gastos.db')
+                df.to_sql('gastos', engine, if_exists='append', index=False)
+                st.success("✅ Datos insertados correctamente.")
+            except Exception as e:
+                st.error(f"❌ Error al insertar datos en la base de datos: {e}")
 
         # OBTENER DATOS
         registros = obtener_gastos()
