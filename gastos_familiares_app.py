@@ -261,4 +261,26 @@ if uploaded_file is not None:
                 st.info("No hay transacciones para mostrar con los filtros actuales.")
             else:
                 comercios = st.session_state.get("COMERCIOS", sorted(df['comercio'].dropna().unique().tolist()))
-                categorias = st.session_
+                categorias = st.session_state.get("CATEGORIAS", sorted(df['categoria'].dropna().unique().tolist()))
+                subcategorias = st.session_state.get("SUBCATEGORIAS", sorted(df['subcategoria'].dropna().unique().tolist()))
+
+                if not comercios:
+                    comercios = [""]
+                if not categorias:
+                    categorias = [""]
+                if not subcategorias:
+                    subcategorias = [""]
+
+                for i, row in df_edit.iterrows():
+                    with st.expander(f" {row['concepto']} - {row['importe']} €"):
+                        comercio_nuevo = st.selectbox("Comercio", options=comercios, index=comercios.index(row['comercio']) if row['comercio'] in comercios else 0, key=f"comercio_{i}")
+                        categoria_nueva = st.selectbox("Categoría", options=categorias, index=categorias.index(row['categoria']) if row['categoria'] in categorias else 0, key=f"categoria_{i}")
+                        subcat_nueva = st.selectbox("Subcategoría", options=subcategorias, index=subcategorias.index(row['subcategoria']) if row['subcategoria'] in subcategorias else 0, key=f"subcat_{i}")
+
+                        df.at[i, 'comercio'] = comercio_nuevo
+                        df.at[i, 'categoria'] = categoria_nueva
+                        df.at[i, 'subcategoria'] = subcat_nueva
+
+                st.download_button(" Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
+    except Exception as e:
+        st.error(f"❌ Error al leer el archivo: {e}")
