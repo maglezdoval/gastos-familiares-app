@@ -8,15 +8,14 @@ from sklearn.linear_model import LinearRegression
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
 
-# Función segura para construir fechas
-def construir_fecha_segura(row):
-    try:
-        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
-    except:
-        return pd.NaT
+# Mostrar selector siempre, incluso si no se ha cargado el archivo
+seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "📈 Evolución", "✍️ Clasificación"])
 
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
+
+if not uploaded_file:
+    st.warning("👆 Sube un archivo CSV para comenzar.")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
@@ -39,12 +38,14 @@ if uploaded_file:
     else:
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
+
+        def construir_fecha_segura(row):
+            try:
+                return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
+            except:
+                return pd.NaT
+
         df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
-
-        st.success("✅ CSV cargado correctamente")
-
-        # Secciones en la barra lateral
-        seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "📈 Evolución", "✍️ Clasificación"])
 
         if seccion == "🏠 Inicio":
             st.header("🏠 Inicio y filtros")
@@ -73,6 +74,7 @@ if uploaded_file:
                 df_filtrado = df_filtrado[df_filtrado["SUBCATEGORÍA"] == subcategoria]
             if cuenta != "Todos" and 'CUENTA' in df.columns:
                 df_filtrado = df_filtrado[df_filtrado["CUENTA"] == cuenta]
+
             df_filtrado = df_filtrado[
                 (df_filtrado["FECHA"] >= pd.to_datetime(fecha_inicio)) &
                 (df_filtrado["FECHA"] <= pd.to_datetime(fecha_fin)) &
@@ -83,18 +85,16 @@ if uploaded_file:
             st.subheader("📋 Tabla de Transacciones")
             st.dataframe(df_filtrado, use_container_width=True)
 
-            st.metric("💰 Total filtrado", f"{df_filtrado['IMPORTE'].sum():,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        elif seccion == "📊 Análisis":
+            st.header("📊 Análisis e Insights")
+            top_comercios = df.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
+            st.subheader("🏪 Top 5 Comercios con más gasto")
+            st.bar_chart(top_comercios)
 
-            st.subheader("📊 Gráfica de Distribución")
-            col_grafico = st.selectbox("Agrupar por:", ["CATEGORÍA", "COMERCIO", "SUBCATEGORÍA"])
-            if col_grafico in df.columns:
-                counts = df_filtrado[col_grafico].value_counts()
-                if not counts.empty:
-                    fig, ax = plt.subplots(figsize=(6, 6))
-                    ax.pie(counts, labels=counts.index, autopct='%1.1f%%', startangle=140)
-                    ax.set_title(f'Distribución por {col_grafico}')
-                    ax.axis('equal')
-                    st.pyplot(fig)
+            resumen = df.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
+            resumen['TOTAL'] = resumen['IMPORTE'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+            st.subheader("📅 Resumen por Año y Mes")
+            st.dataframe(resumen, use_container_width=True)
 
         elif seccion == "📈 Evolución":
             st.header("📈 Evolución mensual de gastos")
@@ -129,34 +129,6 @@ if uploaded_file:
             ax.legend()
             plt.grid(True, linestyle='--', alpha=0.3)
             st.pyplot(fig)
-
-        elif seccion == "📊 Análisis":
-            st.header("📊 Análisis e Insights")
-            top_comercios = df.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
-            if not top_comercios.empty:
-                st.subheader("🏪 Top 5 Comercios con más gasto")
-                st.bar_chart(top_comercios)
-
-            resumen = df.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
-            resumen.rename(columns={"IMPORTE": "TOTAL"}, inplace=True)
-            resumen['TOTAL'] = resumen['TOTAL'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-            st.subheader("📅 Resumen por Año y Mes")
-            st.dataframe(resumen, use_container_width=True)
-
-            mes_actual = datetime.now().month
-            anio_actual = datetime.now().year
-            actual = df[(df['AÑO'] == anio_actual) & (df['MES'] == mes_actual)]
-
-            if not actual.empty:
-                mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
-                st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
-                mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
-                anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
-                anterior = df[(df['AÑO'] == anio_anterior) & (df['MES'] == mes_anterior)]
-                total_actual = actual['IMPORTE'].sum()
-                total_anterior = anterior['IMPORTE'].sum() if not anterior.empty else 0
-                diferencia = total_actual - total_anterior
-                st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
         elif seccion == "✍️ Clasificación":
             st.header("✍️ Clasificación y edición de transacciones")
