@@ -31,12 +31,12 @@ if uploaded_file:
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
         def construir_fecha_segura(row):
-        try:
-            return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
-        except:
-            return pd.NaT
+    try:
+        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
+    except:
+        return pd.NaT
 
-        df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
+df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
 
         st.success("✅ CSV cargado correctamente")
 
