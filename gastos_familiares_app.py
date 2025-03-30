@@ -11,39 +11,58 @@ st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
 
 # Conectar a la base de datos (o crearla si no existe)
-conn = sqlite3.connect('gastos.db')
-cursor = conn.cursor()
+def get_db_connection():
+    conn = sqlite3.connect('gastos.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # Crear una tabla para los gastos si no existe
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS gastos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fecha TEXT NOT NULL,
-        categoria TEXT NOT NULL,
-        subcategoria TEXT,
-        comercio TEXT,
-        concepto TEXT,
-        importe REAL NOT NULL,
-        tipo TEXT NOT NULL,
-        año INTEGER NOT NULL,
-        mes INTEGER NOT NULL,
-        dia INTEGER NOT NULL
-    )
-''')
-conn.commit()
+def create_table():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS gastos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            subcategoria TEXT,
+            comercio TEXT,
+            concepto TEXT,
+            importe REAL NOT NULL,
+            tipo TEXT NOT NULL,
+            año INTEGER NOT NULL,
+            mes INTEGER NOT NULL,
+            dia INTEGER NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+create_table()
 
 # Función para insertar un gasto en la base de datos
 def insertar_gasto(fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia):
-    cursor.execute('''
-        INSERT INTO gastos (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
-    conn.commit()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO gastos (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Error al insertar gasto en la base de datos: {e}")
+    finally:
+        conn.close()
 
 # Función para obtener gastos desde la base de datos
 def obtener_gastos():
+    conn = get_db_connection()
+    cursor = conn.cursor()
     cursor.execute('SELECT * FROM gastos')
-    return cursor.fetchall()
+    gastos = cursor.fetchall()
+    conn.close()
+    return gastos
 
 seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "📈 Evolución", "✍️ Clasificación", "⚙️ Configuración"])
 
