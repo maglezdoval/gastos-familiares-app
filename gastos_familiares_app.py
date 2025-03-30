@@ -97,7 +97,17 @@ df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
 df = df[df['TIPO'] == 'GASTO']
 df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
 df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
-df['FECHA'] = pd.to_datetime(df[['AÑO', 'MES', 'DIA']], errors='coerce')
+
+# Corrección: Creando la fecha correctamente
+df['FECHA'] = pd.to_datetime(
+    {
+        'year': df['AÑO'], 
+        'month': df['MES'], 
+        'day': df['DIA']
+    }, 
+    errors='coerce'
+)
+
 if df['FECHA'].isna().sum() > 0:
     st.warning("⚠️ Algunas fechas no se pudieron convertir correctamente.")
 
@@ -121,63 +131,77 @@ elif seccion == "📊 Análisis":
         fecha_inicio = df['FECHA'].min()
 
     df_periodo = df[df['FECHA'] >= fecha_inicio]
-    top_comercios = df_periodo.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
-    st.subheader("🏪 Top 5 Comercios con más gasto")
-    st.bar_chart(top_comercios)
+    
+    # Verificar que hay datos para el período seleccionado
+    if df_periodo.empty:
+        st.warning("No hay datos para el período seleccionado.")
+    else:
+        top_comercios = df_periodo.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
+        st.subheader("🏪 Top 5 Comercios con más gasto")
+        st.bar_chart(top_comercios)
 
-    resumen = df_periodo.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
-    resumen['TOTAL'] = resumen['IMPORTE'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-    st.subheader("📅 Resumen por Año y Mes")
-    st.dataframe(resumen, use_container_width=True)
+        resumen = df_periodo.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
+        resumen['TOTAL'] = resumen['IMPORTE'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        st.subheader("📅 Resumen por Año y Mes")
+        st.dataframe(resumen, use_container_width=True)
 
-    mes_actual = hoy.month
-    anio_actual = hoy.year
-    actual = df_periodo[(df_periodo['AÑO'] == anio_actual) & (df_periodo['MES'] == mes_actual)]
-    if not actual.empty:
-        mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
-        st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
-        mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
-        anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
-        anterior = df_periodo[(df_periodo['AÑO'] == anio_anterior) & (df_periodo['MES'] == mes_anterior)]
-        total_actual = actual['IMPORTE'].sum()
-        total_anterior = anterior['IMPORTE'].sum() if not anterior.empty else 0
-        diferencia = total_actual - total_anterior
-        st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        mes_actual = hoy.month
+        anio_actual = hoy.year
+        actual = df_periodo[(df_periodo['AÑO'] == anio_actual) & (df_periodo['MES'] == mes_actual)]
+        if not actual.empty:
+            mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
+            st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
+            mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
+            anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
+            anterior = df_periodo[(df_periodo['AÑO'] == anio_anterior) & (df_periodo['MES'] == mes_anterior)]
+            total_actual = actual['IMPORTE'].sum()
+            total_anterior = anterior['IMPORTE'].sum() if not anterior.empty else 0
+            diferencia = total_actual - total_anterior
+            st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
 # 📈 EVOLUCIÓN
 elif seccion == "📈 Evolución":
     st.header("📈 Evolución mensual de gastos")
     años_disponibles = sorted(df['AÑO'].dropna().unique())
-    año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(años_disponibles)-1)
-    meses = list(range(1, 13))
-    df_base = pd.DataFrame({"MES": meses})
-    df_actual = df[df['AÑO'] == año_seleccionado].copy()
-    mensual_actual = df_actual.groupby('MES')['IMPORTE'].sum().reset_index()
-    df_merged = pd.merge(df_base, mensual_actual, on="MES", how="left").fillna(0)
+    
+    if not años_disponibles:
+        st.warning("No hay datos de años disponibles.")
+    else:
+        año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(años_disponibles)-1)
+        meses = list(range(1, 13))
+        df_base = pd.DataFrame({"MES": meses})
+        df_actual = df[df['AÑO'] == año_seleccionado].copy()
+        
+        if df_actual.empty:
+            st.warning(f"No hay datos para el año {año_seleccionado}.")
+        else:
+            mensual_actual = df_actual.groupby('MES')['IMPORTE'].sum().reset_index()
+            df_merged = pd.merge(df_base, mensual_actual, on="MES", how="left").fillna(0)
 
-    mostrar_prediccion = año_seleccionado == hoy.year
-    if mostrar_prediccion:
-        df_historico = df[df['AÑO'] < año_seleccionado].copy()
-        if not df_historico.empty:
-            df_hist_group = df_historico.groupby(['AÑO', 'MES'])['IMPORTE'].sum().reset_index()
-            df_hist_group['MES'] = df_hist_group['MES'].astype(int)
-            X = df_hist_group['MES'].values.reshape(-1, 1)
-            y = df_hist_group['IMPORTE'].values
-            modelo = LinearRegression().fit(X, y)
-            pred = modelo.predict(np.array(meses).reshape(-1, 1))
-            df_merged['PREDICCION'] = pred
+            hoy = datetime.now()
+            mostrar_prediccion = año_seleccionado == hoy.year
+            if mostrar_prediccion:
+                df_historico = df[df['AÑO'] < año_seleccionado].copy()
+                if not df_historico.empty:
+                    df_hist_group = df_historico.groupby(['AÑO', 'MES'])['IMPORTE'].sum().reset_index()
+                    df_hist_group['MES'] = df_hist_group['MES'].astype(int)
+                    X = df_hist_group['MES'].values.reshape(-1, 1)
+                    y = df_hist_group['IMPORTE'].values
+                    modelo = LinearRegression().fit(X, y)
+                    pred = modelo.predict(np.array(meses).reshape(-1, 1))
+                    df_merged['PREDICCION'] = pred
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df_merged['MES'], df_merged['IMPORTE'], marker='o', label="Real", linewidth=2)
-    if mostrar_prediccion and 'PREDICCION' in df_merged.columns:
-        ax.plot(df_merged['MES'], df_merged['PREDICCION'], linestyle='--', marker='x', color='gray', label="Predicción")
-    ax.set_xticks(meses)
-    ax.set_title(f"Evolución mensual de gastos - {año_seleccionado}")
-    ax.set_xlabel("Mes")
-    ax.set_ylabel("Importe (€)")
-    ax.legend()
-    plt.grid(True, linestyle='--', alpha=0.3)
-    st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(df_merged['MES'], df_merged['IMPORTE'], marker='o', label="Real", linewidth=2)
+            if mostrar_prediccion and 'PREDICCION' in df_merged.columns:
+                ax.plot(df_merged['MES'], df_merged['PREDICCION'], linestyle='--', marker='x', color='gray', label="Predicción")
+            ax.set_xticks(meses)
+            ax.set_title(f"Evolución mensual de gastos - {año_seleccionado}")
+            ax.set_xlabel("Mes")
+            ax.set_ylabel("Importe (€)")
+            ax.legend()
+            plt.grid(True, linestyle='--', alpha=0.3)
+            st.pyplot(fig)
 
 # ✍️ CLASIFICACIÓN
 elif seccion == "✍️ Clasificación":
@@ -187,17 +211,37 @@ elif seccion == "✍️ Clasificación":
     if solo_vacias:
         df_edit = df_edit[df_edit['CATEGORÍA'].isna() | (df_edit['CATEGORÍA'].astype(str).str.strip() == '')]
 
-    comercios = st.session_state.get("COMERCIOS", sorted(df['COMERCIO'].dropna().unique().tolist()))
-    categorias = st.session_state.get("CATEGORIAS", sorted(df['CATEGORÍA'].dropna().unique().tolist()))
-    subcategorias = st.session_state.get("SUBCATEGORIAS", sorted(df['SUBCATEGORÍA'].dropna().unique().tolist()))
+    if df_edit.empty:
+        st.info("No hay transacciones para mostrar con los filtros actuales.")
+    else:
+        comercios = st.session_state.get("COMERCIOS", sorted(df['COMERCIO'].dropna().unique().tolist()))
+        categorias = st.session_state.get("CATEGORIAS", sorted(df['CATEGORÍA'].dropna().unique().tolist()))
+        subcategorias = st.session_state.get("SUBCATEGORIAS", sorted(df['SUBCATEGORÍA'].dropna().unique().tolist()))
 
-    for i, row in df_edit.iterrows():
-        with st.expander(f"🧾 {row['CONCEPTO']} - {row['IMPORTE']} €"):
-            comercio_nuevo = st.selectbox("Comercio", options=comercios, index=comercios.index(row['COMERCIO']) if row['COMERCIO'] in comercios else 0, key=f"comercio_{i}")
-            categoria_nueva = st.selectbox("Categoría", options=categorias, index=categorias.index(row['CATEGORÍA']) if row['CATEGORÍA'] in categorias else 0, key=f"categoria_{i}")
-            subcat_nueva = st.selectbox("Subcategoría", options=subcategorias, index=subcategorias.index(row['SUBCATEGORÍA']) if row['SUBCATEGORÍA'] in subcategorias else 0, key=f"subcat_{i}")
-            df.at[i, 'COMERCIO'] = comercio_nuevo
-            df.at[i, 'CATEGORÍA'] = categoria_nueva
-            df.at[i, 'SUBCATEGORÍA'] = subcat_nueva
+        # Asegurar que siempre hay al menos una opción en las listas
+        if not comercios:
+            comercios = [""]
+        if not categorias:
+            categorias = [""]
+        if not subcategorias:
+            subcategorias = [""]
 
-    st.download_button("💾 Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
+        for i, row in df_edit.iterrows():
+            with st.expander(f"🧾 {row['CONCEPTO']} - {row['IMPORTE']} €"):
+                comercio_actual = row['COMERCIO'] if isinstance(row['COMERCIO'], str) else ""
+                categoria_actual = row['CATEGORÍA'] if isinstance(row['CATEGORÍA'], str) else ""
+                subcategoria_actual = row['SUBCATEGORÍA'] if isinstance(row['SUBCATEGORÍA'], str) else ""
+                
+                comercio_index = comercios.index(comercio_actual) if comercio_actual in comercios else 0
+                categoria_index = categorias.index(categoria_actual) if categoria_actual in categorias else 0
+                subcategoria_index = subcategorias.index(subcategoria_actual) if subcategoria_actual in subcategorias else 0
+                
+                comercio_nuevo = st.selectbox("Comercio", options=comercios, index=comercio_index, key=f"comercio_{i}")
+                categoria_nueva = st.selectbox("Categoría", options=categorias, index=categoria_index, key=f"categoria_{i}")
+                subcat_nueva = st.selectbox("Subcategoría", options=subcategorias, index=subcategoria_index, key=f"subcat_{i}")
+                
+                df.at[i, 'COMERCIO'] = comercio_nuevo
+                df.at[i, 'CATEGORÍA'] = categoria_nueva
+                df.at[i, 'SUBCATEGORÍA'] = subcat_nueva
+
+        st.download_button("💾 Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
