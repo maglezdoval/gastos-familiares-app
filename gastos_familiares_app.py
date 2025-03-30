@@ -6,13 +6,6 @@ from datetime import datetime
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
 
-# Función segura para construir fechas
-def construir_fecha_segura(row):
-    try:
-        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
-    except:
-        return pd.NaT
-
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
@@ -37,7 +30,13 @@ if uploaded_file:
         # Procesar importe y fecha
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
-        df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
+        def construir_fecha_segura(row):
+    try:
+        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
+    except:
+        return pd.NaT
+
+df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
 
         st.success("✅ CSV cargado correctamente")
 
@@ -80,12 +79,16 @@ if uploaded_file:
         filtro &= (df['IMPORTE'] >= min_val) & (df['IMPORTE'] <= max_val)
 
         df_filtrado = df[filtro]
+        df_filtrado = df_filtrado[df_filtrado['TIPO'] == 'GASTO']
+
+        # Solo analizar registros de tipo GASTO
+        df_analisis = df_filtrado[df_filtrado['TIPO'] == 'GASTO']
 
         # Mostrar tabla y resumen
         st.subheader("📋 Tabla de Transacciones")
         st.dataframe(df_filtrado, use_container_width=True)
 
-        st.metric("💰 Total filtrado", f"{df_filtrado['IMPORTE'].sum():,.2f} €")
+        st.metric("💰 Total filtrado", f"{df_filtrado['IMPORTE'].sum():,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
         # Selector de agrupación para gráfico de tarta
         st.subheader("📊 Gráfica de Distribución")
@@ -127,34 +130,37 @@ if uploaded_file:
 
         # 🏪 Top 5 Comercios con más gasto
         st.subheader("🏪 Top 5 Comercios con más gasto")
-        top_comercios = df_filtrado.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
+        top_comercios = df_analisis.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
         if not top_comercios.empty:
             st.bar_chart(top_comercios)
 
         # 📅 Resumen por Año y Mes
         st.subheader("📅 Resumen por Año y Mes")
-        resumen = df_filtrado.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
+        resumen = df_analisis.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
         resumen.rename(columns={"IMPORTE": "TOTAL"}, inplace=True)
+        resumen['TOTAL'] = resumen['TOTAL'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
         st.dataframe(resumen, use_container_width=True)
 
         # 💡 Insight: mayor gasto del mes actual
         mes_actual = datetime.now().month
         anio_actual = datetime.now().year
-        actual = df_filtrado[(df_filtrado['AÑO'] == anio_actual) & (df_filtrado['MES'] == mes_actual)]
+        actual = df_analisis[(df_analisis['AÑO'] == anio_actual) & (df_analisis['MES'] == mes_actual)]
 
         if not actual.empty:
             mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
-            st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:.2f} € en '{mayor_gasto['COMERCIO']}'")
+            st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
             # Comparativa con el mes anterior
             mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
             anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
 
-            anterior = df_filtrado[(df_filtrado['AÑO'] == anio_anterior) & (df_filtrado['MES'] == mes_anterior)]
+            anterior = df_analisis[(df_analisis['AÑO'] == anio_anterior) & (df_analisis['MES'] == mes_anterior)]
             total_actual = actual['IMPORTE'].sum()
             total_anterior = anterior['IMPORTE'].sum() if not anterior.empty else 0
             diferencia = total_actual - total_anterior
-            st.info(f"📈 Has gastado {diferencia:+.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado")
-
+            st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.')),
+            file_name="gastos_filtrados.csv",
+            mime="text/csv"
+        )
 else:
     st.info("👆 Sube un archivo CSV para comenzar.")
