@@ -11,6 +11,10 @@ uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
+    df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
+    df = df[df['TIPO'] == 'GASTO']
+    df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
+    df = df[df['TIPO'] == 'GASTO']
 df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
 df = df[df['TIPO'] == 'GASTO']
     df = df[df['TIPO'] == 'GASTO']
