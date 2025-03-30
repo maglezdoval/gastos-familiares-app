@@ -132,7 +132,7 @@ if uploaded_file:
     solo_vacias = st.checkbox("Mostrar solo sin categorizar")
     df_edit = df.copy()
     if solo_vacias:
-        df_edit = df_edit[df_edit[['COMERCIO', 'CATEGORÍA', 'SUBCATEGORÍA']].isnull().any(axis=1)]
+        df_edit = df_edit[df_edit['CATEGORÍA'].isna() | (df_edit['CATEGORÍA'].astype(str).str.strip() == '')]
 
     comercios = st.session_state.get("COMERCIOS", sorted(df['COMERCIO'].dropna().unique().tolist()))
     categorias = st.session_state.get("CATEGORIAS", sorted(df['CATEGORÍA'].dropna().unique().tolist()))
