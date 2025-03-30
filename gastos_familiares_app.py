@@ -30,7 +30,11 @@ if uploaded_file:
         # Procesar importe y fecha
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
-        df['FECHA'] = pd.to_datetime(df[['AÑO', 'MES', 'DIA']], errors='coerce')
+        df['FECHA'] = pd.to_datetime(
+        df.apply(lambda row: f"{int(row['AÑO'])}-{int(row['MES']):02d}-{int(row['DIA']):02d}" 
+        if pd.notnull(row['AÑO']) and pd.notnull(row['MES']) and pd.notnull(row['DIA']) else None, axis=1),
+        errors='coerce'
+    )
 
         st.success("✅ CSV cargado correctamente")
 
