@@ -108,15 +108,39 @@ df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
 
         # Gráfico de evolución mensual
         st.subheader("📈 Evolución Mensual de Gastos")
-        df_filtrado['AÑO_MES'] = df_filtrado['FECHA'].dt.to_period('M')
-        mensual = df_filtrado.groupby('AÑO_MES')['IMPORTE'].sum().reset_index()
+
+        # Filtro por año en la gráfica
+        años_disponibles = sorted(df_filtrado['AÑO'].dropna().unique())
+        año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(años_disponibles)-1)
+        df_año = df_filtrado[df_filtrado['AÑO'] == año_seleccionado]
+
+        # Agrupar por mes
+        df_año['AÑO_MES'] = df_año['FECHA'].dt.to_period('M')
+        mensual = df_año.groupby('AÑO_MES')['IMPORTE'].sum().reset_index()
         mensual['AÑO_MES'] = mensual['AÑO_MES'].astype(str)
 
-        fig2, ax2 = plt.subplots()
-        ax2.plot(mensual['AÑO_MES'], mensual['IMPORTE'], marker='o')
-        ax2.set_title("Evolución de los importes mensuales")
+        # 🔮 Predicción con regresión lineal
+        import numpy as np
+        from sklearn.linear_model import LinearRegression
+
+        mensual['MES_NUM'] = range(1, len(mensual) + 1)
+        X = np.array(mensual['MES_NUM']).reshape(-1, 1)
+        y = mensual['IMPORTE'].values
+
+        modelo = LinearRegression().fit(X, y)
+        futuros_meses = np.array(range(len(X)+1, len(X)+4)).reshape(-1, 1)
+        predicciones = modelo.predict(futuros_meses)
+
+        # 📈 Gráfica bonita
+        fig2, ax2 = plt.subplots(figsize=(10, 5))
+        ax2.plot(mensual['AÑO_MES'], mensual['IMPORTE'], marker='o', label="Histórico", linewidth=2)
+        futuras_labels = [f"{año_seleccionado}-{m:02d}" for m in range(len(X)+1, len(X)+4)]
+        ax2.plot(futuras_labels, predicciones, linestyle='--', marker='x', color='gray', label="Predicción", linewidth=2)
+
+        ax2.set_title("Evolución mensual y predicción de gastos")
         ax2.set_ylabel("Importe (€)")
         ax2.set_xlabel("Mes")
+        ax2.legend()
         plt.xticks(rotation=45)
         st.pyplot(fig2)
 
