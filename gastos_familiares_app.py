@@ -48,7 +48,7 @@ def insertar_gasto(fecha, categoria, subcategoria, comercio, concepto, importe, 
         cursor.execute('''
             INSERT INTO gastos (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fecha.strftime('%Y-%m-%d %H:%M:%S'), categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
+        ''', (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
         conn.commit()
     except sqlite3.Error as e:
         st.error(f"Error al insertar gasto en la base de datos: {e}")
@@ -163,7 +163,7 @@ df['FECHA'] = pd.to_datetime(
         'day': df['DIA']
     }, 
     errors='coerce'
-)
+).dt.strftime('%Y-%m-%d %H:%M:%S')
 
 if df['FECHA'].isna().sum() > 0:
     st.warning("⚠️ Algunas fechas no se pudieron convertir correctamente.")
