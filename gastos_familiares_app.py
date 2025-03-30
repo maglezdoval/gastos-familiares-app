@@ -23,7 +23,7 @@ if seccion == "⚙️ Configuración":
 
     st.subheader(nombre)
     df_edicion = pd.DataFrame(valores_iniciales, columns=[nombre])
-    valores_editados = st.experimental_data_editor(df_edicion)
+    valores_editados = st.data_editor(df_edicion)
     )
     return sorted(valores_editados[nombre].dropna().unique().tolist())
 
