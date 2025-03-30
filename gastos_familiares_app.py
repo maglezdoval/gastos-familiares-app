@@ -14,6 +14,37 @@ seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
+if seccion == "⚙️ Configuración":
+    st.header("⚙️ Administración de categorías y comercios")
+
+    def editar_lista(nombre, valores):
+        st.subheader(nombre)
+        valores_editados = st.experimental_data_editor(pd.DataFrame(valores, columns=[nombre]), num_rows="dynamic")
+        return sorted(valores_editados[nombre].dropna().unique().tolist())
+
+    st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state.get("COMERCIOS", []))
+    st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
+    st.session_state["SUBCATEGORIAS"] = editar_lista("SUBCATEGORÍA", st.session_state.get("SUBCATEGORIAS", []))
+
+    st.success("✅ Cambios aplicados. Ahora puedes usar estas listas al clasificar transacciones.")
+
+    st.download_button("⬇️ Descargar configuración", data=pd.DataFrame({
+        'COMERCIO': st.session_state['COMERCIOS'],
+        'CATEGORÍA': st.session_state['CATEGORIAS'],
+        'SUBCATEGORÍA': st.session_state['SUBCATEGORIAS']
+    }).to_csv(index=False), file_name="configuracion_gastos.csv", mime="text/csv")
+
+    archivo_config = st.file_uploader("📤 Importar configuración (CSV)", type="csv", key="config_upload")
+    if archivo_config:
+        config_df = pd.read_csv(archivo_config)
+        if 'COMERCIO' in config_df.columns:
+            st.session_state['COMERCIOS'] = sorted(config_df['COMERCIO'].dropna().unique().tolist())
+        if 'CATEGORÍA' in config_df.columns:
+            st.session_state['CATEGORIAS'] = sorted(config_df['CATEGORÍA'].dropna().unique().tolist())
+        if 'SUBCATEGORÍA' in config_df.columns:
+            st.session_state['SUBCATEGORIAS'] = sorted(config_df['SUBCATEGORÍA'].dropna().unique().tolist())
+        st.success("✅ Configuración importada correctamente")
+
 if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
 else:
