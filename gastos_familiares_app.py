@@ -19,8 +19,7 @@ if seccion == "⚙️ Configuración":
     valores_seguro = valores_iniciales if isinstance(valores_iniciales, list) else []
     st.subheader(nombre)
     valores_editados = st.experimental_data_editor(
-        pd.DataFrame(valores_seguro, columns=[nombre]),
-        num_rows="dynamic"
+        pd.DataFrame(valores_seguro, columns=[nombre])
     )
     return sorted(valores_editados[nombre].dropna().unique().tolist())
 
