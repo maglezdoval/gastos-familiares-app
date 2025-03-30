@@ -8,26 +8,22 @@ from sklearn.linear_model import LinearRegression
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
 
-# Sección de navegación
 seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "📈 Evolución", "✍️ Clasificación", "⚙️ Configuración"])
 
-# Configuración (se muestra siempre)
+# ⚙️ CONFIGURACIÓN (accesible siempre)
 if seccion == "⚙️ Configuración":
     st.header("⚙️ Administración de categorías y comercios")
 
     def editar_lista(nombre, valores_iniciales):
-    st.subheader(nombre)
-    valor_inicial = "
-".join(valores_iniciales) if valores_iniciales else ""
-    texto = st.text_area(f"Ingresar valores para {nombre} (uno por línea):", value=valor_inicial) or ""
-    lista = [v.strip() for v in texto.splitlines() if v.strip()]
-    return sorted(set(lista))
+        st.subheader(nombre)
+        valor_inicial = "\n".join(valores_iniciales) if valores_iniciales else ""
+        texto = st.text_area(f"Ingresar valores para {nombre} (uno por línea):", value=valor_inicial) or ""
+        lista = [v.strip() for v in texto.splitlines() if v.strip()]
+        return sorted(set(lista))
 
     st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state.get("COMERCIOS", []))
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
     st.session_state["SUBCATEGORIAS"] = editar_lista("SUBCATEGORÍA", st.session_state.get("SUBCATEGORIAS", []))
-
-    st.success("✅ Cambios aplicados. Ahora puedes usar estas listas al clasificar transacciones.")
 
     st.download_button("⬇️ Descargar configuración", data=pd.DataFrame({
         'COMERCIO': st.session_state['COMERCIOS'],
@@ -48,24 +44,20 @@ if seccion == "⚙️ Configuración":
 
     st.stop()
 
-# Subida de archivo CSV
+# 📁 CARGA DE ARCHIVO
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
+
 if not uploaded_file:
-    st.warning("👆 Sube un archivo CSV para acceder a todas las secciones")
+    st.warning("👆 Sube un archivo CSV para acceder al resto de secciones")
     st.stop()
 
-# Procesamiento del archivo
-
-if seccion == "🏠 Inicio":
-    st.header("📋 Tabla de Transacciones")
-    st.dataframe(df, use_container_width=True)
+# PROCESAMIENTO
 try:
     df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', errors='ignore')
 except Exception as e:
     st.error(f"❌ Error al leer el archivo: {e}")
     st.stop()
 
-# Estandarizar columnas y tipos
 renombrar_columnas = {
     "subcategoria": "SUBCATEGORÍA",
     "subcategoría": "SUBCATEGORÍA",
@@ -76,22 +68,26 @@ renombrar_columnas = {
 }
 df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
 
-columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "AÑO", "MES", "DIA", "TIPO"}
+columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
 if not columnas_esperadas.issubset(df.columns):
     faltantes = columnas_esperadas - set(df.columns)
     st.error(f"❌ Faltan columnas: {faltantes}")
     st.stop()
 
-# Filtrar solo gastos y convertir tipos
 df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
 df = df[df['TIPO'] == 'GASTO']
 df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
 df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
 df['FECHA'] = pd.to_datetime(df[['AÑO', 'MES', 'DIA']], errors='coerce')
 
-if seccion == "📊 Análisis":
-    st.header("📊 Análisis e Insights")
+# 🏠 INICIO
+if seccion == "🏠 Inicio":
+    st.header("📋 Tabla de Transacciones")
+    st.dataframe(df, use_container_width=True)
 
+# 📊 ANÁLISIS
+elif seccion == "📊 Análisis":
+    st.header("📊 Análisis e Insights")
     periodo = st.selectbox("Selecciona un periodo:", ["Último mes", "Últimos 3 meses", "Último año", "Todo el histórico"])
     hoy = datetime.now()
     if periodo == "Último mes":
@@ -116,7 +112,6 @@ if seccion == "📊 Análisis":
     mes_actual = hoy.month
     anio_actual = hoy.year
     actual = df_periodo[(df_periodo['AÑO'] == anio_actual) & (df_periodo['MES'] == mes_actual)]
-
     if not actual.empty:
         mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
         st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
@@ -128,6 +123,7 @@ if seccion == "📊 Análisis":
         diferencia = total_actual - total_anterior
         st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
+# 📈 EVOLUCIÓN
 elif seccion == "📈 Evolución":
     st.header("📈 Evolución mensual de gastos")
     años_disponibles = sorted(df['AÑO'].dropna().unique())
@@ -162,6 +158,7 @@ elif seccion == "📈 Evolución":
     plt.grid(True, linestyle='--', alpha=0.3)
     st.pyplot(fig)
 
+# ✍️ CLASIFICACIÓN
 elif seccion == "✍️ Clasificación":
     st.header("✍️ Clasificación y edición de transacciones")
     solo_vacias = st.checkbox("Mostrar solo sin categorizar")
@@ -183,4 +180,3 @@ elif seccion == "✍️ Clasificación":
             df.at[i, 'SUBCATEGORÍA'] = subcat_nueva
 
     st.download_button("💾 Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
-# (mantenemos el resto de tu lógica tal como la tenías, bien organizada y funcional)
