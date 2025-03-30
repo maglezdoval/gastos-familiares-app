@@ -16,10 +16,14 @@ if seccion == "⚙️ Configuración":
     st.header("⚙️ Administración de categorías y comercios")
 
     def editar_lista(nombre, valores_iniciales):
-    valores_seguro = valores_iniciales if isinstance(valores_iniciales, list) else []
+    if not isinstance(valores_iniciales, list):
+        valores_iniciales = []
+    if not valores_iniciales:
+        valores_iniciales = [""]  # Evitar DataFrame vacío sin columnas
+
     st.subheader(nombre)
-    valores_editados = st.experimental_data_editor(
-        pd.DataFrame(valores_seguro, columns=[nombre])
+    df_edicion = pd.DataFrame(valores_iniciales, columns=[nombre])
+    valores_editados = st.experimental_data_editor(df_edicion)
     )
     return sorted(valores_editados[nombre].dropna().unique().tolist())
 
