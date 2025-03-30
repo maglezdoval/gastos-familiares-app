@@ -65,7 +65,7 @@ renombrar_columnas = {
     "comercio": "COMERCIO",
     "categoría": "CATEGORÍA",
     "categoria": "CATEGORÍA"
-}}
+}
 df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
 
 columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
