@@ -22,9 +22,10 @@ if seccion == "⚙️ Configuración":
         return sorted(set(lista))
 
     for clave in ["COMERCIOS", "CATEGORIAS", "SUBCATEGORIAS"]:
-    if clave not in st.session_state:
-        st.session_state[clave] = []
-st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state["COMERCIOS"])
+        if clave not in st.session_state:
+            st.session_state[clave] = []
+            
+    st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state["COMERCIOS"])
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
     st.session_state["SUBCATEGORIAS"] = editar_lista("SUBCATEGORÍA", st.session_state.get("SUBCATEGORIAS", []))
 
@@ -57,16 +58,16 @@ if not uploaded_file:
 # PROCESAMIENTO
 try:
     try:
-    df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-except pd.errors.ParserError as e:
-    st.error(f"❌ Error de parseo del archivo: {e}")
-    st.stop()
-except UnicodeDecodeError as e:
-    st.error(f"❌ Error de codificación del archivo: {e}")
-    st.stop()
-except Exception as e:
-    st.error(f"❌ Error inesperado: {e}")
-    st.stop()
+        df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+    except pd.errors.ParserError as e:
+        st.error(f"❌ Error de parseo del archivo: {e}")
+        st.stop()
+    except UnicodeDecodeError as e:
+        st.error(f"❌ Error de codificación del archivo: {e}")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ Error inesperado: {e}")
+        st.stop()
 except Exception as e:
     st.error(f"❌ Error al leer el archivo: {e}")
     st.stop()
@@ -79,12 +80,14 @@ renombrar_columnas = {
     "categoría": "CATEGORÍA",
     "categoria": "CATEGORÍA"
 }
+
 df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
+
+columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
 columnas_no_mapeadas = [col for col in df.columns if col not in renombrar_columnas.values() and col not in columnas_esperadas]
 if columnas_no_mapeadas:
     st.warning(f"⚠️ Columnas no reconocidas tras el renombrado: {columnas_no_mapeadas}")
 
-columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
 if not columnas_esperadas.issubset(df.columns):
     faltantes = columnas_esperadas - set(df.columns)
     st.error(f"❌ Faltan columnas: {faltantes}")
