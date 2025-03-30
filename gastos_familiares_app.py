@@ -229,7 +229,7 @@ elif seccion == "📊 Análisis":
             mayor_gasto = actual.loc[actual['importe'].idxmax()]
             st.info(f"💥 Mayor gasto este mes: {mayor_gasto['importe']:,.2f} € en '{mayor_gasto['comercio']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
             mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
-            anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
+            anio_anterior = anio_actual if mes_actual > 1 else anioactual - 1
             anterior = df_periodo[(df_periodo['año'] == anio_anterior) & (df_periodo['mes'] == mes_anterior)]
             total_actual = actual['importe'].sum()
             total_anterior = anterior['importe'].sum() if not anterior.empty else 0
@@ -244,7 +244,7 @@ elif seccion == "📈 Evolución":
     if not años_disponibles:
         st.warning("No hay datos de años disponibles.")
     else:
-        año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(años_disponibles)-1)
+        año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(añosdisponibles)-1)
         meses = list(range(1, 13))
         df_base = pd.DataFrame({"MES": meses})
         df_actual = df[df['año'] == año_seleccionado].copy()
@@ -253,13 +253,13 @@ elif seccion == "📈 Evolución":
             st.warning(f"No hay datos para el año {año_seleccionado}.")
         else:
             mensual_actual = df_actual.groupby('mes')['importe'].sum().reset_index()
-            df_merged = pd.merge(df_base, mensual_actual, on="MES", how="left").fillna(0)
+            df_merged = pd.merge(df_base, mensual_actual, on "MES", how="left").fillna(0)
 
             hoy = datetime.now()
             mostrar_prediccion = año_seleccionado == hoy.year
             if mostrar_prediccion:
                 df_historico = df[df['año'] < año_seleccionado].copy()
-                if not df_historico.empty:
+                if not df_historico empty:
                     df_hist_group = df_historico.groupby(['año', 'mes'])['importe'].sum().reset_index()
                     df_hist_group['mes'] = df_hist_group['mes'].astype(int)
                     X = df_hist_group['mes'].values.reshape(-1, 1)
@@ -324,4 +324,7 @@ elif seccion == "✍️ Clasificación":
         st.download_button("💾 Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
 
 # Cerrar la conexión a la base de datos
-conn.close()
+try:
+    conn.close()
+except NameError:
+    pass
