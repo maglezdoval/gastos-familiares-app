@@ -6,6 +6,13 @@ from datetime import datetime
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
 
+# Función segura para construir fechas
+def construir_fecha_segura(row):
+    try:
+        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
+    except:
+        return pd.NaT
+
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
@@ -30,13 +37,7 @@ if uploaded_file:
         # Procesar importe y fecha
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
-        def construir_fecha_segura(row):
-    try:
-        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
-    except:
-        return pd.NaT
-
-df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
+        df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
 
         st.success("✅ CSV cargado correctamente")
 
