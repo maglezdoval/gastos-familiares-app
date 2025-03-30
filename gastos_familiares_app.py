@@ -14,11 +14,11 @@ seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
-if not uploaded_file:
-    st.warning("👆 Sube un archivo CSV para comenzar.")
-
 if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
+else:
+    st.warning("👆 Sube un archivo CSV para acceder a todas las secciones")
+    st.stop()
     df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
     df = df[df['TIPO'] == 'GASTO']
 
@@ -161,4 +161,23 @@ elif seccion == "⚙️ Configuración":
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", sorted(df['CATEGORÍA'].dropna().unique().tolist())))
     st.session_state["SUBCATEGORIAS"] = editar_lista("SUBCATEGORÍA", st.session_state.get("SUBCATEGORIAS", sorted(df['SUBCATEGORÍA'].dropna().unique().tolist())))
 
-    st.success("✅ Cambios aplicados. Ahora puedes usar estas listas al clasificar transacciones."), file_name="gastos_actualizados.csv", mime="text/csv")
+    st.success("✅ Cambios aplicados. Ahora puedes usar estas listas al clasificar transacciones.")
+
+    # Exportar configuración
+    st.download_button("⬇️ Descargar configuración", data=pd.DataFrame({
+        'COMERCIO': st.session_state['COMERCIOS'],
+        'CATEGORÍA': st.session_state['CATEGORIAS'],
+        'SUBCATEGORÍA': st.session_state['SUBCATEGORIAS']
+    }).to_csv(index=False), file_name="configuracion_gastos.csv", mime="text/csv")
+
+    # Importar configuración
+    archivo_config = st.file_uploader("📤 Importar configuración (CSV)", type="csv", key="config_upload")
+    if archivo_config:
+        config_df = pd.read_csv(archivo_config)
+        if 'COMERCIO' in config_df.columns:
+            st.session_state['COMERCIOS'] = sorted(config_df['COMERCIO'].dropna().unique().tolist())
+        if 'CATEGORÍA' in config_df.columns:
+            st.session_state['CATEGORIAS'] = sorted(config_df['CATEGORÍA'].dropna().unique().tolist())
+        if 'SUBCATEGORÍA' in config_df.columns:
+            st.session_state['SUBCATEGORIAS'] = sorted(config_df['SUBCATEGORÍA'].dropna().unique().tolist())
+        st.success("✅ Configuración importada correctamente"), file_name="gastos_actualizados.csv", mime="text/csv")
