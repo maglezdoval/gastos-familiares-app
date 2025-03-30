@@ -16,12 +16,17 @@ if seccion == "⚙️ Configuración":
     st.header("⚙️ Administración de categorías y comercios")
 
     def editar_lista(nombre, valores_iniciales):
-    st.subheader(nombre)
-    texto = st.text_area(f"Ingresar valores para {nombre} (uno por línea):",
-                         value="
-".join(valores_iniciales) if valores_iniciales else "")
-    lista = [v.strip() for v in texto.splitlines() if v.strip()]
-    return sorted(set(lista))
+        st.subheader(nombre)
+        texto = st.text_area(f"Ingresar valores para {nombre} (uno por línea):", value="\n".join(valores_iniciales) if valores_iniciales else "")
+        lista = [v.strip() for v in texto.splitlines() if v.strip()]
+        return sorted(set(lista))
+
+    if "COMERCIOS" not in st.session_state:
+        st.session_state["COMERCIOS"] = []
+    if "CATEGORIAS" not in st.session_state:
+        st.session_state["CATEGORIAS"] = []
+    if "SUBCATEGORIAS" not in st.session_state:
+        st.session_state["SUBCATEGORIAS"] = []
 
     st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state.get("COMERCIOS", []))
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
@@ -183,4 +188,3 @@ elif seccion == "✍️ Clasificación":
             df.at[i, 'SUBCATEGORÍA'] = subcat_nueva
 
     st.download_button("💾 Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
-# (mantenemos el resto de tu lógica tal como la tenías, bien organizada y funcional)
