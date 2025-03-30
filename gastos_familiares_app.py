@@ -60,21 +60,25 @@ if uploaded_file:
         importe_max = float(df['IMPORTE'].max())
         min_val, max_val = st.sidebar.slider("Filtrar por IMPORTE", min_value=importe_min, max_value=importe_max, value=(importe_min, importe_max))
 
-        filtro = pd.Series([True] * len(df))
-        if concepto:
-            filtro &= df["CONCEPTO"].str.contains(concepto, case=False, na=False)
-        if comercio != "Todos":
-            filtro &= df["COMERCIO"] == comercio
-        if categoria != "Todos":
-            filtro &= df["CATEGORÍA"] == categoria
-        if subcategoria != "Todos":
-            filtro &= df["SUBCATEGORÍA"] == subcategoria
-        if cuenta != "Todos" and 'CUENTA' in df.columns:
-            filtro &= df["CUENTA"] == cuenta
-        filtro &= (df['FECHA'] >= pd.to_datetime(fecha_inicio)) & (df['FECHA'] <= pd.to_datetime(fecha_fin))
-        filtro &= (df['IMPORTE'] >= min_val) & (df['IMPORTE'] <= max_val)
+        df_filtrado = df.copy()
 
-        df_filtrado = df[filtro]
+        if concepto:
+            df_filtrado = df_filtrado[df_filtrado["CONCEPTO"].str.contains(concepto, case=False, na=False)]
+        if comercio != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["COMERCIO"] == comercio]
+        if categoria != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["CATEGORÍA"] == categoria]
+        if subcategoria != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["SUBCATEGORÍA"] == subcategoria]
+        if cuenta != "Todos" and 'CUENTA' in df.columns:
+            df_filtrado = df_filtrado[df_filtrado["CUENTA"] == cuenta]
+
+        df_filtrado = df_filtrado[
+            (df_filtrado["FECHA"] >= pd.to_datetime(fecha_inicio)) &
+            (df_filtrado["FECHA"] <= pd.to_datetime(fecha_fin)) &
+            (df_filtrado["IMPORTE"] >= min_val) &
+            (df_filtrado["IMPORTE"] <= max_val)
+        ]
 
         st.subheader("📋 Tabla de Transacciones")
         st.dataframe(df_filtrado, use_container_width=True)
