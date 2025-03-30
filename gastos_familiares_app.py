@@ -11,6 +11,7 @@ uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
+    df = df[df['TIPO'] == 'GASTO']
 
     # Normaliza nombres de columnas
     renombrar_columnas = {
