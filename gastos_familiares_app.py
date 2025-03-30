@@ -15,10 +15,14 @@ seccion = st.sidebar.radio("Ir a sección:", ["🏠 Inicio", "📊 Análisis", "
 if seccion == "⚙️ Configuración":
     st.header("⚙️ Administración de categorías y comercios")
 
-    def editar_lista(nombre, valores):
-        st.subheader(nombre)
-        valores_editados = st.experimental_data_editor(pd.DataFrame(valores, columns=[nombre]), num_rows="dynamic")
-        return sorted(valores_editados[nombre].dropna().unique().tolist())
+    def editar_lista(nombre, valores_iniciales):
+    valores_seguro = valores_iniciales if isinstance(valores_iniciales, list) else []
+    st.subheader(nombre)
+    valores_editados = st.experimental_data_editor(
+        pd.DataFrame(valores_seguro, columns=[nombre]),
+        num_rows="dynamic"
+    )
+    return sorted(valores_editados[nombre].dropna().unique().tolist())
 
     st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state.get("COMERCIOS", []))
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
@@ -52,6 +56,10 @@ if not uploaded_file:
     st.stop()
 
 # Procesamiento del archivo
+
+if seccion == "🏠 Inicio":
+    st.header("📋 Tabla de Transacciones")
+    st.dataframe(df, use_container_width=True)
 try:
     df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', errors='ignore')
 except Exception as e:
