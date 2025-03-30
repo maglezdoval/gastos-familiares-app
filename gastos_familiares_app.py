@@ -41,24 +41,6 @@ def create_table():
 
 create_table()
 
-# Función para insertar un gasto en la base de datos
-def insertar_gasto(fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO gastos (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
-        conn.commit()
-        st.success("✅ Gasto insertado correctamente.")
-    except sqlite3.Error as e:
-        st.error(f"❌ Error al insertar gasto en la base de datos: {e}")
-    except Exception as e:
-        st.error(f"❌ Error inesperado: {e}")
-    finally:
-        conn.close()
-
 # Función para obtener gastos desde la base de datos
 def obtener_gastos():
     conn = get_db_connection()
@@ -160,7 +142,15 @@ if uploaded_file is not None:
         with st.spinner("Insertando datos en la base de datos..."):
             try:
                 engine = create_engine('sqlite:///gastos.db')
-                df.to_sql('gastos', engine, if_exists='append', index=False)
+                #Modificacion aqui.
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(gastos)")
+                columns = [column[1] for column in cursor.fetchall()]
+                if "SUBCATEGORÍA" not in columns:
+                    df.to_sql('gastos', engine, if_exists='append', index=False)
+                else:
+                    df.to_sql('gastos', engine, if_exists='append', index=False)
                 st.success("✅ Datos insertados correctamente.")
             except Exception as e:
                 st.error(f"❌ Error al insertar datos en la base de datos: {e}")
@@ -271,26 +261,4 @@ if uploaded_file is not None:
                 st.info("No hay transacciones para mostrar con los filtros actuales.")
             else:
                 comercios = st.session_state.get("COMERCIOS", sorted(df['comercio'].dropna().unique().tolist()))
-                categorias = st.session_state.get("CATEGORIAS", sorted(df['categoria'].dropna().unique().tolist()))
-                subcategorias = st.session_state.get("SUBCATEGORIAS", sorted(df['subcategoria'].dropna().unique().tolist()))
-
-                if not comercios:
-                    comercios = [""]
-                if not categorias:
-                    categorias = [""]
-                if not subcategorias:
-                    subcategorias = [""]
-
-                for i, row in df_edit.iterrows():
-                    with st.expander(f" {row['concepto']} - {row['importe']} €"):
-                        comercio_nuevo = st.selectbox("Comercio", options=comercios, index=comercios.index(row['comercio']) if row['comercio'] in comercios else 0, key=f"comercio_{i}")
-                        categoria_nueva = st.selectbox("Categoría", options=categorias, index=categorias.index(row['categoria']) if row['categoria'] in categorias else 0, key=f"categoria_{i}")
-                        subcat_nueva = st.selectbox("Subcategoría", options=subcategorias, index=subcategorias.index(row['subcategoria']) if row['subcategoria'] in subcategorias else 0, key=f"subcat_{i}")
-
-                        df.at[i, 'comercio'] = comercio_nuevo
-                        df.at[i, 'categoria'] = categoria_nueva
-                        df.at[i, 'subcategoria'] = subcat_nueva
-
-                st.download_button(" Descargar CSV actualizado", df.to_csv(index=False), file_name="gastos_actualizados.csv", mime="text/csv")
-    except Exception as e:
-        st.error(f"❌ Error al leer el archivo: {e}")
+                categorias = st.session_
