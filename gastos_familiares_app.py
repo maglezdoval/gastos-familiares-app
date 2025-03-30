@@ -48,7 +48,7 @@ def insertar_gasto(fecha, categoria, subcategoria, comercio, concepto, importe, 
         cursor.execute('''
             INSERT INTO gastos (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fecha, categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
+        ''', (fecha.strftime('%Y-%m-%d %H:%M:%S'), categoria, subcategoria, comercio, concepto, importe, tipo, año, mes, dia))
         conn.commit()
     except sqlite3.Error as e:
         st.error(f"Error al insertar gasto en la base de datos: {e}")
@@ -134,7 +134,8 @@ renombrar_columnas = {
     "concepto": "CONCEPTO",
     "comercio": "COMERCIO",
     "categoría": "CATEGORÍA",
-    "categoria": "CATEGORÍA"
+    "categoria": "CATEGORÍA",
+    "cuenta": "CUENTA"
 }
 
 df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
@@ -301,21 +302,21 @@ elif seccion == "✍️ Clasificación":
             categorias = [""]
         if not subcategorias:
             subcategorias = [""]
-        
+
         for i, row in df_edit.iterrows():
             with st.expander(f"🧾 {row['concepto']} - {row['importe']} €"):
                 comercio_actual = row['comercio'] if isinstance(row['comercio'], str) else ""
                 categoria_actual = row['categoria'] if isinstance(row['categoria'], str) else ""
                 subcategoria_actual = row['subcategoria'] if isinstance(row['subcategoria'], str) else ""
-                
+
                 comercio_index = comercios.index(comercio_actual) if comercio_actual in comercios else 0
                 categoria_index = categorias.index(categoria_actual) if categoria_actual in categorias else 0
                 subcategoria_index = subcategorias.index(subcategoria_actual) if subcategoria_actual in subcategorias else 0
-                
+
                 comercio_nuevo = st.selectbox("Comercio", options=comercios, index=comercio_index, key=f"comercio_{i}")
                 categoria_nueva = st.selectbox("Categoría", options=categorias, index=categoria_index, key=f"categoria_{i}")
                 subcat_nueva = st.selectbox("Subcategoría", options=subcategorias, index=subcategoria_index, key=f"subcat_{i}")
-                
+
                 df.at[i, 'comercio'] = comercio_nuevo
                 df.at[i, 'categoria'] = categoria_nueva
                 df.at[i, 'subcategoria'] = subcat_nueva
