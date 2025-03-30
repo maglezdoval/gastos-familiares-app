@@ -21,7 +21,10 @@ if seccion == "⚙️ Configuración":
         lista = [v.strip() for v in texto.splitlines() if v.strip()]
         return sorted(set(lista))
 
-    st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state.get("COMERCIOS", []))
+    for clave in ["COMERCIOS", "CATEGORIAS", "SUBCATEGORIAS"]:
+    if clave not in st.session_state:
+        st.session_state[clave] = []
+st.session_state["COMERCIOS"] = editar_lista("COMERCIO", st.session_state["COMERCIOS"])
     st.session_state["CATEGORIAS"] = editar_lista("CATEGORÍA", st.session_state.get("CATEGORIAS", []))
     st.session_state["SUBCATEGORIAS"] = editar_lista("SUBCATEGORÍA", st.session_state.get("SUBCATEGORIAS", []))
 
@@ -53,7 +56,17 @@ if not uploaded_file:
 
 # PROCESAMIENTO
 try:
-    df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', errors='ignore')
+    try:
+    df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+except pd.errors.ParserError as e:
+    st.error(f"❌ Error de parseo del archivo: {e}")
+    st.stop()
+except UnicodeDecodeError as e:
+    st.error(f"❌ Error de codificación del archivo: {e}")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Error inesperado: {e}")
+    st.stop()
 except Exception as e:
     st.error(f"❌ Error al leer el archivo: {e}")
     st.stop()
@@ -67,6 +80,9 @@ renombrar_columnas = {
     "categoria": "CATEGORÍA"
 }
 df.columns = [renombrar_columnas.get(col.lower().strip(), col.upper().strip()) for col in df.columns]
+columnas_no_mapeadas = [col for col in df.columns if col not in renombrar_columnas.values() and col not in columnas_esperadas]
+if columnas_no_mapeadas:
+    st.warning(f"⚠️ Columnas no reconocidas tras el renombrado: {columnas_no_mapeadas}")
 
 columnas_esperadas = {"CONCEPTO", "COMERCIO", "CATEGORÍA", "SUBCATEGORÍA", "IMPORTE", "TIPO", "AÑO", "MES", "DIA"}
 if not columnas_esperadas.issubset(df.columns):
@@ -79,6 +95,8 @@ df = df[df['TIPO'] == 'GASTO']
 df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
 df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
 df['FECHA'] = pd.to_datetime(df[['AÑO', 'MES', 'DIA']], errors='coerce')
+if df['FECHA'].isna().sum() > 0:
+    st.warning("⚠️ Algunas fechas no se pudieron convertir correctamente.")
 
 # 🏠 INICIO
 if seccion == "🏠 Inicio":
