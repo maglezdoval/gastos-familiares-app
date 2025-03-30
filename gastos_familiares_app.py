@@ -2,9 +2,18 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 st.set_page_config(page_title="Gastos Familiares", layout="wide")
 st.title("💸 Analizador de Gastos Familiares")
+
+# Función segura para construir fechas
+def construir_fecha_segura(row):
+    try:
+        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
+    except:
+        return pd.NaT
 
 # Subida de archivo CSV
 uploaded_file = st.file_uploader("📁 Sube tu archivo CSV", type="csv")
@@ -13,13 +22,7 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file, sep=';')
     df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
     df = df[df['TIPO'] == 'GASTO']
-    df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
-    df = df[df['TIPO'] == 'GASTO']
-df['TIPO'] = df['TIPO'].astype(str).str.strip().str.upper()
-df = df[df['TIPO'] == 'GASTO']
-    df = df[df['TIPO'] == 'GASTO']
 
-    # Normaliza nombres de columnas
     renombrar_columnas = {
         "subcategoria": "SUBCATEGORÍA",
         "subcategoría": "SUBCATEGORÍA",
@@ -34,20 +37,12 @@ df = df[df['TIPO'] == 'GASTO']
     if not columnas_esperadas.issubset(df.columns):
         st.error(f"❌ Columnas encontradas: {df.columns.tolist()}\n✅ Se esperaban: {list(columnas_esperadas)}")
     else:
-        # Procesar importe y fecha
         df['IMPORTE'] = df['IMPORTE'].astype(str).str.replace(',', '.').astype(float)
         df[['AÑO', 'MES', 'DIA']] = df[['AÑO', 'MES', 'DIA']].apply(pd.to_numeric, errors='coerce')
-        def construir_fecha_segura(row):
-    try:
-        return datetime(int(row['AÑO']), int(row['MES']), int(row['DIA']))
-    except:
-        return pd.NaT
-
-df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
+        df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
 
         st.success("✅ CSV cargado correctamente")
 
-        # Filtros en la barra lateral
         st.sidebar.header("🔎 Filtros")
         concepto = st.sidebar.text_input("Filtrar por CONCEPTO")
 
@@ -56,19 +51,15 @@ df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
         subcategoria = st.sidebar.selectbox("Filtrar por SUBCATEGORÍA", ["Todos"] + sorted(df['SUBCATEGORÍA'].dropna().unique().tolist()))
 
         cuenta = st.sidebar.selectbox("Filtrar por CUENTA", ["Todos"] + sorted(df['CUENTA'].dropna().unique().tolist()) if 'CUENTA' in df.columns else ["Todos"])
-        tipo = st.sidebar.selectbox("Filtrar por TIPO", ["Todos"] + sorted(df['TIPO'].dropna().unique().tolist()) if 'TIPO' in df.columns else ["Todos"])
 
-        # Filtro de fechas
         fecha_min = df['FECHA'].min()
         fecha_max = df['FECHA'].max()
         fecha_inicio, fecha_fin = st.sidebar.date_input("Filtrar por rango de fechas", [fecha_min, fecha_max])
 
-        # Filtro por importe
         importe_min = float(df['IMPORTE'].min())
         importe_max = float(df['IMPORTE'].max())
         min_val, max_val = st.sidebar.slider("Filtrar por IMPORTE", min_value=importe_min, max_value=importe_max, value=(importe_min, importe_max))
 
-        # Aplicar filtros
         filtro = pd.Series([True] * len(df))
         if concepto:
             filtro &= df["CONCEPTO"].str.contains(concepto, case=False, na=False)
@@ -80,24 +71,16 @@ df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
             filtro &= df["SUBCATEGORÍA"] == subcategoria
         if cuenta != "Todos" and 'CUENTA' in df.columns:
             filtro &= df["CUENTA"] == cuenta
-        if tipo != "Todos" and 'TIPO' in df.columns:
-            filtro &= df["TIPO"] == tipo
         filtro &= (df['FECHA'] >= pd.to_datetime(fecha_inicio)) & (df['FECHA'] <= pd.to_datetime(fecha_fin))
         filtro &= (df['IMPORTE'] >= min_val) & (df['IMPORTE'] <= max_val)
 
         df_filtrado = df[filtro]
-        df_filtrado = df_filtrado[df_filtrado['TIPO'] == 'GASTO']
 
-        # Solo analizar registros de tipo GASTO
-        df_analisis = df_filtrado[df_filtrado['TIPO'] == 'GASTO']
-
-        # Mostrar tabla y resumen
         st.subheader("📋 Tabla de Transacciones")
         st.dataframe(df_filtrado, use_container_width=True)
 
         st.metric("💰 Total filtrado", f"{df_filtrado['IMPORTE'].sum():,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
-        # Selector de agrupación para gráfico de tarta
         st.subheader("📊 Gráfica de Distribución")
         col_grafico = st.selectbox("Agrupar por:", ["CATEGORÍA", "COMERCIO", "SUBCATEGORÍA"])
 
@@ -110,37 +93,27 @@ df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
                 ax.axis('equal')
                 st.pyplot(fig)
 
-        # Gráfico de evolución mensual
+        # 📈 Gráfico de evolución con predicción
         st.subheader("📈 Evolución Mensual de Gastos")
-
-        # Filtro por año en la gráfica
         años_disponibles = sorted(df_filtrado['AÑO'].dropna().unique())
         año_seleccionado = st.selectbox("Seleccionar año para la gráfica", años_disponibles, index=len(años_disponibles)-1)
         df_año = df_filtrado[df_filtrado['AÑO'] == año_seleccionado]
 
-        # Agrupar por mes
         df_año['AÑO_MES'] = df_año['FECHA'].dt.to_period('M')
         mensual = df_año.groupby('AÑO_MES')['IMPORTE'].sum().reset_index()
         mensual['AÑO_MES'] = mensual['AÑO_MES'].astype(str)
-
-        # 🔮 Predicción con regresión lineal
-        import numpy as np
-        from sklearn.linear_model import LinearRegression
-
         mensual['MES_NUM'] = range(1, len(mensual) + 1)
+
         X = np.array(mensual['MES_NUM']).reshape(-1, 1)
         y = mensual['IMPORTE'].values
-
         modelo = LinearRegression().fit(X, y)
         futuros_meses = np.array(range(len(X)+1, len(X)+4)).reshape(-1, 1)
         predicciones = modelo.predict(futuros_meses)
 
-        # 📈 Gráfica bonita
         fig2, ax2 = plt.subplots(figsize=(10, 5))
         ax2.plot(mensual['AÑO_MES'], mensual['IMPORTE'], marker='o', label="Histórico", linewidth=2)
         futuras_labels = [f"{año_seleccionado}-{m:02d}" for m in range(len(X)+1, len(X)+4)]
         ax2.plot(futuras_labels, predicciones, linestyle='--', marker='x', color='gray', label="Predicción", linewidth=2)
-
         ax2.set_title("Evolución mensual y predicción de gastos")
         ax2.set_ylabel("Importe (€)")
         ax2.set_xlabel("Mes")
@@ -155,43 +128,3 @@ df['FECHA'] = df.apply(construir_fecha_segura, axis=1)
             file_name="gastos_filtrados.csv",
             mime="text/csv"
         )
-
-        # 📌 Nueva sección: Análisis e Insights
-        st.header("📍 Análisis e Insights")
-
-        # 🏪 Top 5 Comercios con más gasto
-        st.subheader("🏪 Top 5 Comercios con más gasto")
-        top_comercios = df_analisis.groupby("COMERCIO")["IMPORTE"].sum().sort_values(ascending=False).head(5)
-        if not top_comercios.empty:
-            st.bar_chart(top_comercios)
-
-        # 📅 Resumen por Año y Mes
-        st.subheader("📅 Resumen por Año y Mes")
-        resumen = df_analisis.groupby(["AÑO", "MES"])["IMPORTE"].sum().reset_index()
-        resumen.rename(columns={"IMPORTE": "TOTAL"}, inplace=True)
-        resumen['TOTAL'] = resumen['TOTAL'].map(lambda x: f"{x:,.2f} €".replace(',', 'X').replace('.', ',').replace('X', '.'))
-        st.dataframe(resumen, use_container_width=True)
-
-        # 💡 Insight: mayor gasto del mes actual
-        mes_actual = datetime.now().month
-        anio_actual = datetime.now().year
-        actual = df_analisis[(df_analisis['AÑO'] == anio_actual) & (df_analisis['MES'] == mes_actual)]
-
-        if not actual.empty:
-            mayor_gasto = actual.loc[actual['IMPORTE'].idxmax()]
-            st.info(f"💥 Mayor gasto este mes: {mayor_gasto['IMPORTE']:,.2f} € en '{mayor_gasto['COMERCIO']}'".replace(',', 'X').replace('.', ',').replace('X', '.'))
-
-            # Comparativa con el mes anterior
-            mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
-            anio_anterior = anio_actual if mes_actual > 1 else anio_actual - 1
-
-            anterior = df_analisis[(df_analisis['AÑO'] == anio_anterior) & (df_analisis['MES'] == mes_anterior)]
-            total_actual = actual['IMPORTE'].sum()
-            total_anterior = anterior['IMPORTE'].sum() if not anterior.empty else 0
-            diferencia = total_actual - total_anterior
-            st.info(f"📈 Has gastado {diferencia:+,.2f} € {'más' if diferencia > 0 else 'menos'} que el mes pasado".replace(',', 'X').replace('.', ',').replace('X', '.')),
-            file_name="gastos_filtrados.csv",
-            mime="text/csv"
-        )
-else:
-    st.info("👆 Sube un archivo CSV para comenzar.")
