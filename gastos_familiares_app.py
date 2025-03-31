@@ -75,13 +75,41 @@ def main():
             )
 
            #Formatear la tabla para mostrar las cantidades en euros
-            formato_euro = '€{:.2f}'
-            for column in tabla_gastos.columns:
-              tabla_gastos[column] = tabla_gastos[column].map(formato_euro.format)
+            formato_euro = '€{:,.0f}'.format #Formatear la tabla para mostrar las cantidades en euros
+            # Estilo para la tabla, incluyendo totales en negrita
+            estilo = [
+                {
+                    'selector': 'th',
+                    'props': [
+                        ('background-color', '#6c757d !important'), # Color de fondo gris oscuro
+                        ('color', 'white'),
+                        ('font-weight', 'bold')
+                    ]
+                },
+                {
+                    'selector': 'th.col_heading',
+                    'props': [('text-align', 'center')]
+                },
+                {
+                    'selector': 'th.row_heading',
+                    'props': [('text-align', 'left')]
+                },
+                 {
+                    'selector': 'tr:last-child', #Selecciona la última fila (Total)
+                    'props': [('font-weight' , 'bold')]
 
+                 },
+                 {
+                   'selector': 'td:last-child', #Selecciona la última columna (Total)
+                   'props': [('font-weight', 'bold')]
+                  }
+            ]
+
+            # Formatear la tabla y aplicar estilo
+            tabla_formateada = tabla_gastos.style.format(formatter=formato_euro).set_table_styles(estilo)
 
             # Mostrar la tabla
-            st.dataframe(tabla_gastos, width=1000, height=500)
+            st.dataframe(tabla_formateada, width=1000, height=500)
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
