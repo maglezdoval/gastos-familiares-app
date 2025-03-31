@@ -1,19 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-def asignar_categoria(row):
-    tipo = str(row['TIPO']).lower()    
-    if tipo == 'gasto':
-        return 'Gasto'
-    elif tipo == 'ingreso':
-        return 'Ingreso'
-    elif tipo == 'traspaso':
-        return 'Traspaso'
-    elif tipo == 'recibo':
-        return 'Recibo'
-    return 'Otros'
-
-
 def main():
     st.title('Gestor de Gastos Familiares')
 
@@ -106,7 +93,7 @@ def main():
                 st.write(f"El mes con mayores gastos fue: {mes_mas_gastos}")
 
                 # Obtener la categoría con el gasto más alto
-                categoria_mas_gastos = df.groupby('Categoria')['Importe'].sum().idxmin()
+                categoria_mas_gastos = df.groupby('CATEGORÍA')['Importe'].sum().idxmin()
                 st.write(f"La categoría con mayores gastos fue: {categoria_mas_gastos}")
 
                 # Ejemplo de detección de tendencias (esto es muy básico y se puede mejorar)
