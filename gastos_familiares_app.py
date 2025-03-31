@@ -20,13 +20,16 @@ def main():
             # 4. Crear una columna 'Tipo' basada en el importe (INGRESOS O GASTOS)
             df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
 
-            # **5. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
+            # **5. Imprimir valores únicos en la columna Tipo ANTES del filtro**
+            st.write("Valores únicos en la columna 'Tipo' (ANTES del filtro):", df['Tipo'].unique())
+
+            # **6. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
             df = df[df['Tipo'] == 'Gasto']
 
-            # **6. Imprimir valores únicos de la columna 'Tipo'**
-            st.write("Valores únicos en la columna 'Tipo':", df['Tipo'].unique())
+            # **7. Imprimir valores únicos en la columna 'Tipo' DESPUÉS del filtro**
+            st.write("Valores únicos en la columna 'Tipo' (DESPUÉS del filtro):", df['Tipo'].unique())
 
-            # 7. Mostrar datos (SOLO LAS TRANSACCIONES FILTRADAS)
+            # 8. Mostrar datos (SOLO LAS TRANSACCIONES FILTRADAS)
             st.subheader('Transacciones de Gasto')
             st.dataframe(df)
 
