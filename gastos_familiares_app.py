@@ -95,6 +95,7 @@ def main():
             #ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
             #st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
 
+
             # **13. Sección de Análisis Financiero en el sidebar**
             st.sidebar.header('Análisis Financiero')
             categoria_seleccionada = st.sidebar.selectbox("Selecciona una categoría", df['Categoria'].unique())
@@ -116,6 +117,17 @@ def main():
 
     else:
         st.info("Por favor, sube un archivo CSV para comenzar.")
+
+    #Visualización de pastel para ingresos y egresos totales
+    if uploaded_file is not None:  # Mostrar solo si se ha cargado el archivo
+        st.subheader('Distribución de Gastos Totales')
+        gastos_totales_por_categoria = df.groupby('Categoria')['Importe'].sum()
+
+        fig1, ax1 = plt.subplots()
+        ax1.pie(gastos_totales_por_categoria, labels=gastos_totales_por_categoria.index, autopct='%1.1f%%', shadow=True, startangle=90)
+        ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
+        st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
+
 
 
 if __name__ == "__main__":
