@@ -50,8 +50,6 @@ def main():
             gastos_por_categoria = df.groupby('Categoria')['Importe'].sum().sort_values(ascending=False)
             st.bar_chart(gastos_por_categoria)
 
-            # 10. Eliminar la sección de ingresos (ya no es necesaria)
-
             # 11. Filtros (opcional)
             st.sidebar.header('Filtros')
             fecha_inicio = st.sidebar.date_input('Fecha Inicio', df['Fecha'].min())
@@ -92,14 +90,13 @@ def main():
     #Visualización de pastel para ingresos y egresos totales
     if uploaded_file is not None:  # Mostrar solo si se ha cargado el archivo
         st.subheader('Distribución de Gastos Totales')
-        gastos_totales_por_categoria = df.groupby('Categoria')['Importe'].sum()
+        # Calcula el valor absoluto de los importes para el gráfico de pastel
+        gastos_totales_por_categoria = df.groupby('Categoria')['Importe'].sum().abs()
 
         fig1, ax1 = plt.subplots()
         ax1.pie(gastos_totales_por_categoria, labels=gastos_totales_por_categoria.index, autopct='%1.1f%%', shadow=True, startangle=90)
         ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
         st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
-
-
 
 if __name__ == "__main__":
     main()
