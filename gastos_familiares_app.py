@@ -1,22 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-def asignar_categoria(row):
-    tipo = str(row['TIPO']).lower()
-    
-    if tipo == 'gasto':
-        return 'Gasto'  # O la categoría que quieras para los gastos
-    elif tipo == 'ingreso':
-        return 'Ingreso'  # O la categoría que quieras para los ingresos
-    elif tipo == 'traspaso':
-        return 'Traspaso' #Categorización de los Traspasos
-    elif tipo == 'recibo':
-        return 'Recibo' #Categorización de los Recibos
-    return 'Otros'  # Para cualquier otro caso
-
-
 def main():
-    st.title('Gestor de Gastos Familiares - SOLO GASTOS')
+    st.title('Análisis de Gastos por Año y Mes')
 
     # 1. Permitir al usuario subir el archivo CSV
     uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
@@ -31,38 +17,23 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Asignar la columna categoría en base al valor de la columna TIPO
-            df['Categoria'] = df.apply(asignar_categoria, axis=1)
+            # 4. Crear una columna 'Tipo' basada en el importe
+            df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
 
-            # **5. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
-            df = df[df['Categoria'] == 'Gasto']
+            # **5. Filtrar solo los gastos**
+            df = df[df['Tipo'] == 'Gasto']
 
-            # 7. Imprimir las categorías únicas encontradas
-            print(df['Categoria'].unique())
-
-            # 8. Mostrar datos
-            st.subheader('Transacciones de Gasto')
-            st.dataframe(df)
-
-            # 9. Resumen de gastos por categoría
-            st.subheader('Gastos por Categoría')
-            gastos_por_categoria = df.groupby('Categoria')['Importe'].sum().sort_values(ascending=False)
-            st.bar_chart(gastos_por_categoria)
-
-            # **14. Sección de Análisis por Año y Mes**
-            st.subheader('Análisis de Gastos por Año y Mes')
-
-            # Extraer el año
+            # 6. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
             df['Mes'] = df['Fecha'].dt.month
 
-            #Seleccionar año
+            # 7. Seleccionar el año
             año_seleccionado = st.selectbox("Selecciona un año", df['Año'].unique())
 
-            #Filtrar por año
+            # 8. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # Crear la tabla pivote
+            # 9. Crear la tabla pivote
             tabla_gastos = df_año.pivot_table(
                 values='Importe',
                 index='Categoria',
@@ -73,7 +44,7 @@ def main():
                 margins_name='Total' # Renombrar "All" por "Total"
             )
 
-            #Formatear la tabla para mostrar las cantidades en euros
+            # Formatear la tabla para mostrar las cantidades en euros
             formato_euro = '{:,.0f}€'.format #Formatear la tabla para mostrar las cantidades en euros
             # Estilo para la tabla, incluyendo totales en negrita
             estilo = [
@@ -93,11 +64,12 @@ def main():
                     'selector': 'th.row_heading',
                     'props': [('text-align', 'left')]
                 },
-                {
+                 {
                     'selector': 'tr:last-child', #Selecciona la última fila (Total)
                     'props': [('font-weight' , 'bold !important')]
-                },
-                {
+
+                 },
+                 {
                    'selector': 'td:last-child', #Selecciona la última columna (Total)
                    'props': [('font-weight', 'bold !important')]
                   }
