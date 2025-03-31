@@ -50,21 +50,30 @@ def main():
             gastos_por_categoria = df.groupby('Categoria')['Importe'].sum().sort_values(ascending=False)
             st.bar_chart(gastos_por_categoria)
 
-            # **13. Sección de Análisis Financiero en el sidebar**
-            st.sidebar.header('Análisis Financiero')
-            categoria_seleccionada = st.sidebar.selectbox("Selecciona una categoría", df['Categoria'].unique())
+            # **14. Sección de Análisis por Año y Mes**
+            st.subheader('Análisis de Gastos por Año y Mes')
 
-            # Filtrar por categoría seleccionada
-            df_categoria = df[df['Categoria'] == categoria_seleccionada]
+            # Extraer el año
+            df['Año'] = df['Fecha'].dt.year
+            df['Mes'] = df['Fecha'].dt.month
 
-            # Mostrar transacciones de la categoría
-            st.subheader(f'Transacciones de {categoria_seleccionada}')
-            st.dataframe(df_categoria)
+            #Seleccionar año
+            año_seleccionado = st.selectbox("Selecciona un año", df['Año'].unique())
 
-            # Resumen de gastos para la categoría seleccionada (mensual)
-            st.subheader(f'Gastos Mensuales de {categoria_seleccionada}')
-            gastos_mensuales = df_categoria.groupby(df_categoria['Fecha'].dt.strftime('%Y-%m'))['Importe'].sum()
-            st.line_chart(gastos_mensuales)
+            #Filtrar por año
+            df_año = df[df['Año'] == año_seleccionado]
+
+            # Crear la tabla pivote
+            tabla_gastos = df_año.pivot_table(
+                values='Importe',
+                index='Categoria',
+                columns='Mes',
+                aggfunc='sum',
+                fill_value=0  # Rellenar los valores faltantes con 0
+            )
+
+            # Mostrar la tabla
+            st.dataframe(tabla_gastos)
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
