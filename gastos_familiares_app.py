@@ -9,7 +9,7 @@ def asignar_categoria(row, categorias):
     categoria_manual = row.get('CATEGORÍA', None)  # Intenta obtener la categoría del archivo
 
     if not pd.isna(categoria_manual) and categoria_manual != '':
-        return categoria_manual
+        return row['CATEGORÍA']  # Usa la categoría existente
 
     return 'Otros'  # Si no coincide con ninguna palabra clave
 
@@ -75,7 +75,7 @@ def main():
             )
 
            #Formatear la tabla para mostrar las cantidades en euros
-            formato_euro = '€{:,.0f}'.format #Formatear la tabla para mostrar las cantidades en euros
+            formato_euro = '{:,.0f}€'.format #Formatear la tabla para mostrar las cantidades en euros
             # Estilo para la tabla, incluyendo totales en negrita
             estilo = [
                 {
@@ -96,12 +96,12 @@ def main():
                 },
                  {
                     'selector': 'tr:last-child', #Selecciona la última fila (Total)
-                    'props': [('font-weight' , 'bold')]
+                    'props': [('font-weight' , 'bold !important')]
 
                  },
                  {
                    'selector': 'td:last-child', #Selecciona la última columna (Total)
-                   'props': [('font-weight', 'bold')]
+                   'props': [('font-weight', 'bold !important')]
                   }
             ]
 
