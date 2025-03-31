@@ -11,26 +11,47 @@ def main():
         try:
             df = pd.read_csv(uploaded_file, sep=';')
 
+            # Validación de columnas
+            required_columns = ['AÑO', 'MES', 'DIA', 'IMPORTE', 'TIPO', 'CATEGORÍA', 'SUBCATEGORIA']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                st.error(f"Error: Faltan las siguientes columnas en el archivo CSV: {', '.join(missing_columns)}")
+                return
+
             # 2. Convertir la columna 'Fecha'
-            df['Fecha'] = pd.to_datetime(df['AÑO'].astype(str) + '-' + df['MES'].astype(str) + '-' + df['DIA'].astype(str))
+            try:
+                df['Fecha'] = pd.to_datetime(df['AÑO'].astype(str) + '-' + df['MES'].astype(str) + '-' + df['DIA'].astype(str), format='%Y-%m-%d')
+            except ValueError as e:
+                st.error(f"Error al convertir la columna 'Fecha': {e}.  Asegúrate de que las columnas AÑO, MES y DIA sean correctas.")
+                return
+
 
             # 3. Convertir la columna 'IMPORTE' a numérico
-            df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
+            df['IMPORTE'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Filtrar solo los gastos
+            # Manejo de valores nulos en 'IMPORTE'
+            if df['IMPORTE'].isnull().any():
+                st.warning("Advertencia: Se encontraron valores nulos en la columna 'IMPORTE'. Se reemplazarán con 0.")
+                df['IMPORTE'] = df['IMPORTE'].fillna(0)
+
+            # **4. Verificamos los valores únicos de las columnas clave**
+            st.write("Valores únicos en la columna 'TIPO':", df['TIPO'].unique())
+            st.write("Valores únicos en la columna 'CATEGORÍA':", df['CATEGORÍA'].unique())
+
+            # 5. Filtrar solo los gastos
             df = df[df["TIPO"] == "GASTO"]
 
-            # 5. Extraer el año y el mes
+            # 6. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
             df['Mes'] = df['Fecha'].dt.month
 
-            # 6. Seleccionar el año
+            # 7. Seleccionar el año
             año_seleccionado = st.selectbox("Selecciona un año", df['Año'].unique())
 
-            # 7. Filtrar por año
+            # 8. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # 8. Crear la tabla pivote
+            # 9. Crear la tabla pivote
             tabla_gastos = df_año.pivot_table(
                 values='Importe',
                 index='CATEGORÍA',
@@ -67,10 +88,10 @@ def main():
 
             # Agrupar por subcategoría y mostrar la tabla
             if filtro is not None:
-               tabla_desglose = df_año[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
-               st.dataframe(tabla_desglose)
-
-            #En caso de no seleccionar nada, muestra un texto de ayuda
+                st.subheader(f"Detalle de Gastos para {categoria_seleccionada} en el mes {mes_seleccionado}")
+                tabla_desglose = df_año[filtro].groupby(['SUBCATEGORIA', 'DESCRIPCION', 'Fecha'])['Importe'].sum().reset_index()
+                tabla_desglose = tabla_desglose.sort_values(by='Importe', ascending=False)
+                st.dataframe(tabla_desglose)
             else:
                 st.write("Selecciona una categoría y un mes de la tabla para ver el detalle.")
 
