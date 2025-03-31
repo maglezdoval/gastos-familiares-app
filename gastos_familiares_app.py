@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def main():
-    st.title('Gestor de Gastos Familiares')
+    st.title('Análisis de Gastos por Año y Mes')
 
     # 1. Permitir al usuario subir el archivo CSV
     uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
@@ -17,88 +17,63 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Crear una columna 'Tipo' basada en el importe
-            df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
+            # 4. Filtrar solo los gastos
+            df = df[df["TIPO"] == "GASTO"]
 
-            # **5. Filtrar solo los gastos**
-            df = df[df['Tipo'] == 'Gasto']
-
-            # 6. Extraer el año y el mes
+            # 5. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
             df['Mes'] = df['Fecha'].dt.month
 
-            # 7. Seleccionar el año
+            # 6. Seleccionar el año
             año_seleccionado = st.selectbox("Selecciona un año", df['Año'].unique())
 
-            # 8. Filtrar por año
+            # 7. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # **9. Permitir al usuario seleccionar las cuentas a mostrar**
-            cuentas_seleccionadas = st.multiselect("Selecciona las cuentas", df_año['CUENTA'].unique(), default=df_año['CUENTA'].unique())
-
-            # **10. Filtrar por cuentas seleccionadas**
-            df_filtrado = df_año[df_año['CUENTA'].isin(cuentas_seleccionadas)]
-
-            # **11. Imprimir las categorías únicas encontradas ANTES de la tabla pivote**
-            print(df_filtrado['CATEGORÍA'].unique())
-
-            # 12. Crear la tabla pivote
-            tabla_gastos = df_filtrado.pivot_table(
+            # 8. Crear la tabla pivote
+            tabla_gastos = df_año.pivot_table(
                 values='Importe',
                 index='CATEGORÍA',
                 columns='Mes',
                 aggfunc='sum',
-                fill_value=0,  # Rellenar los valores faltantes con 0
-                margins=True, # Añadir filas y columnas de totales
-                margins_name='Total' # Renombrar "All" por "Total"
+                fill_value=0,
+                margins=True,
+                margins_name='Total'
             )
 
             # Formatear la tabla para mostrar las cantidades en euros
-            formato_euro = '{:,.0f}€'.format #Formatear la tabla para mostrar las cantidades en euros
-            # Estilo para la tabla, incluyendo totales en negrita
+            formato_euro = '{:,.0f}€'.format
             estilo = [
-                {
-                    'selector': 'th',
-                    'props': [
-                        ('background-color', '#6c757d !important'), # Color de fondo gris oscuro
-                        ('color', 'white'),
-                        ('font-weight', 'bold !important')
-                    ]
-                },
-                {
-                    'selector': 'th.col_heading',
-                    'props': [('text-align', 'center')]
-                },
-                {
-                    'selector': 'th.row_heading',
-                    'props': [('text-align', 'left')]
-                },
-                 {
-                    'selector': 'tr:last-child', #Selecciona la última fila (Total)
-                    'props': [('font-weight' , 'bold !important')]
-
-                 },
-                 {
-                   'selector': 'td:last-child', #Selecciona la última columna (Total)
-                   'props': [('font-weight', 'bold !important')]
-                  }
+                {'selector': 'th', 'props': [('background-color', '#6c757d !important'), ('color', 'white'), ('font-weight', 'bold !important')]},
+                {'selector': 'th.col_heading', 'props': [('text-align', 'center')]},
+                {'selector': 'th.row_heading', 'props': [('text-align', 'left')]},
+                {'selector': 'tr:last-child', 'props': [('font-weight' , 'bold !important')]},
+                {'selector': 'td:last-child', 'props': [('font-weight', 'bold !important')]}
             ]
-
-            # Formatear la tabla y aplicar estilo
             tabla_formateada = tabla_gastos.style.format(formatter=formato_euro).set_table_styles(estilo)
 
             # Mostrar la tabla
             st.dataframe(tabla_formateada, width=1000, height=500)
 
-            if uploaded_file is not None:
-              st.subheader('Distribución de Gastos Totales')
-              # Calcula el valor absoluto de los importes para el gráfico de pastel
-              gastos_totales_por_categoria = df_filtrado.groupby('CATEGORÍA')['Importe'].sum().abs()
+            # **15. Interactividad: Selección de celda con filtro por año**
+            st.subheader("Detalle de Gastos")
 
-              fig1, ax1 = plt.subplots()
-              ax1.pie(gastos_totales_por_categoria, labels=gastos_totales_por_categoria.index, autopct='%1.1f%%', shadow=True, startangle=90)
-              ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
-              st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
+            # Permitimos seleccionar la categoría del index para mostrar el desglose de los gastos mensuales
+            categoria_seleccionada = st.selectbox("Selecciona una Categoría", df_año['CATEGORÍA'].unique())
+            mes_seleccionado= st.selectbox("Selecciona un Mes", df_año['Mes'].unique())
+
+            # Crear filtro para la categoría y el mes seleccionados
+            filtro = (df_año['CATEGORÍA'] == categoria_seleccionada) & (df_año['Mes'] == mes_seleccionado)
+
+            # Agrupar por subcategoría y mostrar la tabla
+            if filtro is not None:
+               tabla_desglose = df_año[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
+               st.dataframe(tabla_desglose)
+
+            #En caso de no seleccionar nada, muestra un texto de ayuda
+            else:
+                st.write("Selecciona una categoría y un mes de la tabla para ver el detalle.")
+
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
