@@ -9,7 +9,7 @@ def asignar_categoria(row, categorias):
     categoria_manual = row.get('CATEGORÍA', None)  # Intenta obtener la categoría del archivo
 
     if not pd.isna(categoria_manual) and categoria_manual != '':
-        return row['CATEGORÍA']  # Usa la categoría existente
+        return categoria_manual
 
     return 'Otros'  # Si no coincide con ninguna palabra clave
 
@@ -29,13 +29,13 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            #4. Asignar la columna categoría
+            # 4. Asignar la columna categoría
             df['Categoria'] = df.apply(asignar_categoria, axis=1, categorias={}) # Inicia vacío
 
             # 5. Crear una columna 'Tipo' basada en si el importe es positivo o negativo
             df['Tipo'] = df['Importe'].apply(lambda x: 'Ingreso' if x > 0 else 'Gasto')
 
-            # **6. Filtrar solo los gastos**
+            # **6. Filtrar solo los gastos (APLICAR EL FILTRO AL DATAFRAME PRINCIPAL)**
             df = df[df['Tipo'] == 'Gasto']
 
             # 7. Imprimir las categorías únicas encontradas
