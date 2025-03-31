@@ -18,7 +18,7 @@ def main():
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
             # 4. Filtrar solo los gastos
-            df = df[df['TIPO'] == 'GASTO']
+            df = df[df["TIPO"] == "GASTO"]
 
             # 5. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
@@ -55,19 +55,19 @@ def main():
             # Mostrar la tabla
             st.dataframe(tabla_formateada, width=1000, height=500)
 
-            # **15. Interactividad: Selección de celda**
+            # **15. Interactividad: Selección de celda con filtro por año**
             st.subheader("Detalle de Gastos")
 
-            #Permitimos seleccionar la categoría del index para mostrar el desglose de los gastos mensuales
-            categoria_seleccionada = st.selectbox("Selecciona una Categoría", df['CATEGORÍA'].unique())
-            mes_seleccionado= st.selectbox("Selecciona un Mes", df['Mes'].unique())
+            # Permitimos seleccionar la categoría del index para mostrar el desglose de los gastos mensuales
+            categoria_seleccionada = st.selectbox("Selecciona una Categoría", df_año['CATEGORÍA'].unique())
+            mes_seleccionado= st.selectbox("Selecciona un Mes", df_año['Mes'].unique())
 
             # Crear filtro para la categoría y el mes seleccionados
-            filtro = (df['CATEGORÍA'] == categoria_seleccionada) & (df['Mes'] == mes_seleccionado)
+            filtro = (df_año['CATEGORÍA'] == categoria_seleccionada) & (df_año['Mes'] == mes_seleccionado)
 
             # Agrupar por subcategoría y mostrar la tabla
             if filtro is not None:
-               tabla_desglose = df[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
+               tabla_desglose = df_año[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
                st.dataframe(tabla_desglose)
 
             #En caso de no seleccionar nada, muestra un texto de ayuda
