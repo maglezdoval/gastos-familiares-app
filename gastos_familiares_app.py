@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt  # Importar matplotlib
+import matplotlib.pyplot as plt
 import seaborn as sns
 
 @st.cache_data
@@ -16,21 +16,21 @@ categorias = {
     'Transporte': ['gasolina', 'autobus', 'taxi', 'metro', 'carburante', 'cabify', 'autopista', 'autobus','coche', 'parking', 'cepsa hq madrid','impulsa eventos', 'auto pista', 'peaje', 'atpseitt aeropuert','autopista ap-36', 'autopista r4 se','cepsa hq madrid'],
     'Salud': ['farmacia', 'medico', 'dentista', 'hospital', 'farmacias', 'podologo','Farmacia Parque', 'Farmacia Gil Al', 'clinica narvart', 'servicios medicos','farmacia el bur', 'farmacia nativi', 'farmacia sada', 'clinica cemtro','farmacia','clinica narvart','Lcda Maria Paz Garcia','Farmacia Carlavilla','Farmaciachicano','Clínica Ojeda'],
     'Ropa': ['zara', 'h&m', 'c&a', 'decathlon', 'cortefiel', 'bershka', 'stradivarius','puma europe gmbh','converse 8111','coolmania', 'tienda gran pla','tienda 24 horas','mercado persa', 'sigler', 'market tartessu','nike', 'frikinh','lotería'],
-    'Suministros': ['iberdrola smart', 'endesa', 'smart energy', 'suministros','iberdrola smart','suministros', 'elcogas','mercado libre','plenitude', 'podo', 'canal de isabel ii'],
+    'Suministros': ['iberdrola smart', 'endesa', 'smart energy', 'suministros','iberdrola smart','suministros', 'elcogas','mercado libre','plenitude', 'podo', 'canal de isabel ii','geo alternativa'],
     'Otros': ['gastos varios', 'cajero automatico','diversión','Bizum', 'Sin Concepto',' Bizum Apth'],
     'Donaciones': ['aecc', 'cruz roja', 'fundacion corazon', 'donaciones', 'asociacion española contra el cancer', 'española contra el cancer','fundación corazón','fundacion española del corazon'],
     'Transferencia': ['transferencia', 'traspaso','CUENTA FAMILIAR', 'CUENTA COMÚN','cuenta familiar'],
     'Suscripciones': ['apple.com', 'netflix', 'hbo max', 'spotify', 'prime video', 'sky showtime', 'disney plus', 'wordpress','amazon prime','duolingo','telefónica','filmin','rakuten tv','spotify','juegos','tidal'],
     'Comisiones': ['comisiones','Santanderpremia','liquidación','intereses','tarjeta','comisión'],
     'Comunidad':['comunidad', 'propietarios','cp. modesto lafuente,','c. p. modesto lafuente'],
-    'Supermercado':['mercadona','carrefour','dia','Simply']
-    'Cuidado Personal':['Alexso', 'Tijeritas Magic','Peluquería']
-    'Movistar':['Telefonica', 'Movistar']
-    'Limpieza': ['Sabbahi Meziou','Noufisa sabban meziane', 'Mina']
-    'Electrodomésticos':['Wizink', 'Financiera El Corte Inglés' ]
+    'Supermercado':['mercadona','carrefour','dia','Simply'],
+    'Cuidado Personal':['Alexso', 'Tijeritas Magic','Peluquería'],
+    'Movistar':['Telefonica', 'Movistar'],
+    'Limpieza': ['Sabbahi Meziou','Noufisa sabban meziane', 'Mina'],
+    'Electrodomésticos':['Wizink', 'Financiera El Corte Inglés' ],
     'Transporte': ['Cabify'],
     'Alquiler': ['Fontanería']
-    
+
 }
 
 def asignar_categoria(row):
@@ -120,3 +120,8 @@ fig1, ax1 = plt.subplots()
 ax1.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90, colors=colors)
 ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
 st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
+content_copy
+download
+Use code with caution.
+Python
+He corregido el error de sintaxis que mencionaste. Cópialo y guárdalo, ¡y ahora debería funcionar! Recuerda que el próximo paso es revisar las categorías y ajustarlas según tus necesidades.
