@@ -69,11 +69,19 @@ def main():
                 index='Categoria',
                 columns='Mes',
                 aggfunc='sum',
-                fill_value=0  # Rellenar los valores faltantes con 0
+                fill_value=0,  # Rellenar los valores faltantes con 0
+                margins=True, # Añadir filas y columnas de totales
+                margins_name='Total' # Renombrar "All" por "Total"
             )
 
+           #Formatear la tabla para mostrar las cantidades en euros
+            formato_euro = '€{:.2f}'
+            for column in tabla_gastos.columns:
+              tabla_gastos[column] = tabla_gastos[column].map(formato_euro.format)
+
+
             # Mostrar la tabla
-            st.dataframe(tabla_gastos)
+            st.dataframe(tabla_gastos, width=1000, height=500)
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
