@@ -1,6 +1,21 @@
 import streamlit as st
 import pandas as pd
 
+def asignar_categoria(row):
+    tipo = row['TIPO'].lower()
+    
+    if tipo == 'gasto':
+        return 'Gasto'  # O la categoría que quieras para los gastos
+    elif tipo == 'ingreso':
+        return 'Ingreso'  # O la categoría que quieras para los ingresos
+    elif tipo == 'traspaso':
+        return 'Traspaso' #Categorización de los Traspasos
+    elif tipo == 'recibo':
+        return 'Recibo' #Categorización de los Recibos
+
+    return 'Otros'  # Para cualquier otro caso
+
+
 def main():
     st.title('Gestor de Gastos Familiares - SOLO GASTOS')
 
@@ -17,21 +32,23 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Crear una columna 'Tipo' basada en el importe (INGRESOS O GASTOS)
-            df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
+            #4. Asignar la columna categoría en base al valor de la columna TIPO
+            df['Categoria'] = df.apply(asignar_categoria, axis=1)
 
-            # **5. Imprimir valores únicos en la columna Tipo ANTES del filtro**
-            st.write("Valores únicos en la columna 'Tipo' (ANTES del filtro):", df['Tipo'].unique())
+            # **5. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
+            df = df[df['Categoria'] == 'Gasto']
 
-            # **6. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
-            df = df[df['Tipo'] == 'Gasto']
+            # **6. Imprimir valores únicos de la columna 'Categoria'**
+            st.write("Valores únicos en la columna 'Categoria' (DESPUÉS del filtro):", df['Categoria'].unique())
 
-            # **7. Imprimir valores únicos en la columna 'Tipo' DESPUÉS del filtro**
-            st.write("Valores únicos en la columna 'Tipo' (DESPUÉS del filtro):", df['Tipo'].unique())
-
-            # 8. Mostrar datos (SOLO LAS TRANSACCIONES FILTRADAS)
+            # 7. Mostrar datos (SOLO LAS TRANSACCIONES FILTRADAS)
             st.subheader('Transacciones de Gasto')
             st.dataframe(df)
+
+            # 8. Resumen de gastos por categoría
+            st.subheader('Gastos por Categoría')
+            gastos_por_categoria = df.groupby('Categoria')['Importe'].sum().sort_values(ascending=False)
+            st.bar_chart(gastos_por_categoria)
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
