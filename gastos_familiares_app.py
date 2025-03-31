@@ -17,7 +17,7 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Filtramos el dataframe para obtener solo los gastos
+            # 4. Filtrar solo los gastos
             df = df[df["TIPO"] == "GASTO"]
 
             # 5. Extraer el año y el mes
@@ -30,8 +30,14 @@ def main():
             # 7. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # 8. Crear la tabla pivote
-            tabla_gastos = df_año.pivot_table(
+            # **8. Permitir al usuario seleccionar las cuentas a mostrar**
+            cuentas_seleccionadas = st.multiselect("Selecciona las cuentas", df_año['CUENTA'].unique(), default=df_año['CUENTA'].unique())
+
+            # **9. Filtrar por cuentas seleccionadas**
+            df_filtrado = df_año[df_año['CUENTA'].isin(cuentas_seleccionadas)]
+
+            # 10. Crear la tabla pivote
+            tabla_gastos = df_filtrado.pivot_table(
                 values='Importe',
                 index='CATEGORÍA',
                 columns='Mes',
@@ -41,7 +47,7 @@ def main():
                 margins_name='Total' # Renombrar "All" por "Total"
             )
 
-            # 9. Formatear la tabla para mostrar las cantidades en euros
+            # Formatear la tabla para mostrar las cantidades en euros
             formato_euro = '{:,.0f}€'.format #Formatear la tabla para mostrar las cantidades en euros
             # Estilo para la tabla, incluyendo totales en negrita
             estilo = [
