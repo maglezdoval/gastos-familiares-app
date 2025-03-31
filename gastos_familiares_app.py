@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def asignar_categoria(row):
-    tipo = row['TIPO'].lower()
+    tipo = str(row['TIPO']).lower()  # Convertir a string antes de usar .lower()
     
     if tipo == 'gasto':
         return 'Gasto'  # O la categoría que quieras para los gastos
@@ -12,7 +12,6 @@ def asignar_categoria(row):
         return 'Traspaso' #Categorización de los Traspasos
     elif tipo == 'recibo':
         return 'Recibo' #Categorización de los Recibos
-
     return 'Otros'  # Para cualquier otro caso
 
 
