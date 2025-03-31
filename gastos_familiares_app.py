@@ -18,7 +18,7 @@ def main():
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
             # 4. Filtrar solo los gastos
-            df = df[df["TIPO"] == "GASTO"]
+            df = df[df['TIPO'] == 'GASTO']
 
             # 5. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
@@ -30,59 +30,50 @@ def main():
             # 7. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # **8. Permitir al usuario seleccionar las cuentas a mostrar**
-            cuentas_seleccionadas = st.multiselect("Selecciona las cuentas", df_año['CUENTA'].unique(), default=df_año['CUENTA'].unique())
-
-            # **9. Filtrar por cuentas seleccionadas**
-            df_filtrado = df_año[df_año['CUENTA'].isin(cuentas_seleccionadas)]
-
-            # 10. Crear la tabla pivote
-            tabla_gastos = df_filtrado.pivot_table(
+            # 8. Crear la tabla pivote
+            tabla_gastos = df_año.pivot_table(
                 values='Importe',
                 index='CATEGORÍA',
                 columns='Mes',
                 aggfunc='sum',
-                fill_value=0,  # Rellenar los valores faltantes con 0
-                margins=True, # Añadir filas y columnas de totales
-                margins_name='Total' # Renombrar "All" por "Total"
+                fill_value=0,
+                margins=True,
+                margins_name='Total'
             )
 
             # Formatear la tabla para mostrar las cantidades en euros
-            formato_euro = '{:,.0f}€'.format #Formatear la tabla para mostrar las cantidades en euros
-            # Estilo para la tabla, incluyendo totales en negrita
+            formato_euro = '{:,.0f}€'.format
             estilo = [
-                {
-                    'selector': 'th',
-                    'props': [
-                        ('background-color', '#6c757d !important'), # Color de fondo gris oscuro
-                        ('color', 'white'),
-                        ('font-weight', 'bold !important')
-                    ]
-                },
-                {
-                    'selector': 'th.col_heading',
-                    'props': [('text-align', 'center')]
-                },
-                {
-                    'selector': 'th.row_heading',
-                    'props': [('text-align', 'left')]
-                },
-                 {
-                    'selector': 'tr:last-child', #Selecciona la última fila (Total)
-                    'props': [('font-weight' , 'bold !important')]
-
-                 },
-                 {
-                   'selector': 'td:last-child', #Selecciona la última columna (Total)
-                   'props': [('font-weight', 'bold !important')]
-                  }
+                {'selector': 'th', 'props': [('background-color', '#6c757d !important'), ('color', 'white'), ('font-weight', 'bold !important')]},
+                {'selector': 'th.col_heading', 'props': [('text-align', 'center')]},
+                {'selector': 'th.row_heading', 'props': [('text-align', 'left')]},
+                {'selector': 'tr:last-child', 'props': [('font-weight' , 'bold !important')]},
+                {'selector': 'td:last-child', 'props': [('font-weight', 'bold !important')]}
             ]
-
-            # Formatear la tabla y aplicar estilo
             tabla_formateada = tabla_gastos.style.format(formatter=formato_euro).set_table_styles(estilo)
 
             # Mostrar la tabla
             st.dataframe(tabla_formateada, width=1000, height=500)
+
+            # **15. Interactividad: Selección de celda**
+            st.subheader("Detalle de Gastos")
+
+            #Permitimos seleccionar la categoría del index para mostrar el desglose de los gastos mensuales
+            categoria_seleccionada = st.selectbox("Selecciona una Categoría", df['CATEGORÍA'].unique())
+            mes_seleccionado= st.selectbox("Selecciona un Mes", df['Mes'].unique())
+
+            # Crear filtro para la categoría y el mes seleccionados
+            filtro = (df['CATEGORÍA'] == categoria_seleccionada) & (df['Mes'] == mes_seleccionado)
+
+            # Agrupar por subcategoría y mostrar la tabla
+            if filtro is not None:
+               tabla_desglose = df[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
+               st.dataframe(tabla_desglose)
+
+            #En caso de no seleccionar nada, muestra un texto de ayuda
+            else:
+                st.write("Selecciona una categoría y un mes de la tabla para ver el detalle.")
+
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
