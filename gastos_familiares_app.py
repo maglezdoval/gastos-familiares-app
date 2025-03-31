@@ -43,11 +43,6 @@ def main():
                 st.error(f"Error al convertir la columna 'Fecha': {e}.  Asegúrate de que las columnas AÑO, MES y DIA sean correctas.")
                 return
 
-
-            # **4. Verificamos los valores únicos de las columnas clave**
-            st.write(f"Valores únicos en la columna '{tipo_column_name}':", df[tipo_column_name].unique())
-            st.write(f"Valores únicos en la columna '{categoria_column_name}':", df[categoria_column_name].unique())
-
             # 5. Filtrar solo los gastos
             df = df[df[tipo_column_name] == "GASTO"]
 
