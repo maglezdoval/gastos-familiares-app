@@ -30,8 +30,14 @@ def main():
             # 7. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # 8. Crear la tabla pivote
-            tabla_gastos = df_año.pivot_table(
+            # **8. Permitir al usuario seleccionar las cuentas a mostrar**
+            cuentas_seleccionadas = st.multiselect("Selecciona las cuentas", df_año['CUENTA'].unique(), default=df_año['CUENTA'].unique())
+
+            # **9. Filtrar por cuentas seleccionadas**
+            df_filtrado = df_año[df_año['CUENTA'].isin(cuentas_seleccionadas)]
+
+            # 10. Crear la tabla pivote
+            tabla_gastos = df_filtrado.pivot_table(
                 values='Importe',
                 index='CATEGORÍA',
                 columns='Mes',
@@ -78,31 +84,23 @@ def main():
             # Mostrar la tabla
             st.dataframe(tabla_formateada, width=1000, height=500)
 
-            # **15. Interactividad: Selección de celda**
-            st.subheader("Detalle de Gastos")
-
-            #Permitimos seleccionar la categoría del index para mostrar el desglose de los gastos mensuales
-            categoria_seleccionada = st.selectbox("Selecciona una Categoría", df_año['CATEGORÍA'].unique())
-            mes_seleccionado= st.selectbox("Selecciona un Mes", df_año['Mes'].unique())
-
-            # Crear filtro para la categoría y el mes seleccionados
-            filtro = (df_año['CATEGORÍA'] == categoria_seleccionada) & (df_año['Mes'] == mes_seleccionado)
-
-            # Agrupar por subcategoría y mostrar la tabla
-            if filtro is not None:
-               tabla_desglose = df_año[filtro].groupby('SUBCATEGORIA')['Importe'].sum().reset_index()
-               st.dataframe(tabla_desglose)
-
-            #En caso de no seleccionar nada, muestra un texto de ayuda
-            else:
-                st.write("Selecciona una categoría y un mes de la tabla para ver el detalle.")
-
-
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
 
     else:
         st.info("Por favor, sube un archivo CSV para comenzar.")
+
+
+    #Visualización de pastel para ingresos y egresos totales
+    if uploaded_file is not None:  # Mostrar solo si se ha cargado el archivo
+        st.subheader('Distribución de Gastos Totales')
+        # Calcula el valor absoluto de los importes para el gráfico de pastel
+        gastos_totales_por_categoria = df.groupby('Categoria')['Importe'].sum().abs()
+
+        fig1, ax1 = plt.subplots()
+        ax1.pie(gastos_totales_por_categoria, labels=gastos_totales_por_categoria.index, autopct='%1.1f%%', shadow=True, startangle=90)
+        ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
+        st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
 
 
 if __name__ == "__main__":
