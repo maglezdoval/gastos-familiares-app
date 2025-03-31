@@ -1,6 +1,19 @@
 import streamlit as st
 import pandas as pd
 
+def asignar_categoria(row):
+    tipo = str(row['TIPO']).lower()
+    
+    if tipo == 'gasto':
+        return 'Gasto'  # O la categoría que quieras para los gastos
+    elif tipo == 'ingreso':
+        return 'Ingreso'  # O la categoría que quieras para los ingresos
+    elif tipo == 'traspaso':
+        return 'Traspaso' #Categorización de los Traspasos
+    elif tipo == 'recibo':
+        return 'Recibo' #Categorización de los Recibos
+    return 'Otros'  # Para cualquier otro caso
+
 def main():
     st.title('Análisis de Gastos por Año y Mes')
 
@@ -17,23 +30,26 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Crear una columna 'Tipo' basada en el importe
+             # 4. Crear una columna 'Tipo' basada en el importe
             df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
 
-            # **5. Filtrar solo los gastos**
-            df = df[df['Tipo'] == 'Gasto']
+            # 5. Asignar la columna categoría en base al valor de la columna TIPO
+            df['Categoria'] = df.apply(asignar_categoria, axis=1)
 
-            # 6. Extraer el año y el mes
+            # **6. Filtrar solo los gastos**
+            df = df[df['Categoria'] == 'Gasto']
+
+            # 7. Extraer el año y el mes
             df['Año'] = df['Fecha'].dt.year
             df['Mes'] = df['Fecha'].dt.month
 
-            # 7. Seleccionar el año
+            # 8. Seleccionar el año
             año_seleccionado = st.selectbox("Selecciona un año", df['Año'].unique())
 
-            # 8. Filtrar por año
+            # 9. Filtrar por año
             df_año = df[df['Año'] == año_seleccionado]
 
-            # 9. Crear la tabla pivote
+            # 10. Crear la tabla pivote
             tabla_gastos = df_año.pivot_table(
                 values='Importe',
                 index='Categoria',
