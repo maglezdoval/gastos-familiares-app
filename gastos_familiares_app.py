@@ -17,8 +17,8 @@ def main():
             # 3. Convertir la columna 'IMPORTE' a numérico
             df['Importe'] = df['IMPORTE'].str.replace(',', '.').astype(float)
 
-            # 4. Crear una columna 'Tipo' basada en si el importe es positivo o negativo
-            df['Tipo'] = df['Importe'].apply(lambda x: 'Ingreso' if x > 0 else 'Gasto')
+            # 4. Crear una columna 'Tipo' basada en el importe (INGRESOS O GASTOS)
+            df['Tipo'] = df['Importe'].apply(lambda x: 'Gasto' if x < 0 else 'Ingreso')
 
             # **5. Filtrar solo los gastos (LO MÁS IMPORTANTE)**
             df = df[df['Tipo'] == 'Gasto']
