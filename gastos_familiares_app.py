@@ -51,10 +51,6 @@ def main():
             st.bar_chart(gastos_por_categoria)
 
             # 10. Eliminar la sección de ingresos (ya no es necesaria)
-            # Resumen de ingresos por categoría
-            #st.subheader('Ingresos por Categoría')
-            #ingresos_por_categoria = df[df['Tipo'] == 'Ingreso'].groupby('Categoria')['Importe'].sum().sort_values(ascending=False)
-            #st.bar_chart(ingresos_por_categoria)
 
             # 11. Filtros (opcional)
             st.sidebar.header('Filtros')
@@ -70,31 +66,6 @@ def main():
             df['Año'] = df['Fecha'].dt.year
             gastos_anuales = df.groupby(['Año', 'Categoria'])['Importe'].sum().unstack().fillna(0)
             st.line_chart(gastos_anuales)
-
-            # 12. Eliminar el resumen financiero (ya no es necesario)
-            # Calcula el total de ingresos y egresos
-            #total_ingresos = df[df['Tipo'] == 'Ingreso']['Importe'].sum()
-            #total_egresos = df[df['Tipo'] == 'Gasto']['Importe'].sum()
-            #diferencia = total_ingresos + total_egresos  # Suma porque egresos son negativos
-
-            # Muestra los resultados
-            #st.subheader('Resumen Financiero')
-            #st.write(f"Total de Ingresos: {total_ingresos:.2f}")
-            #st.write(f"Total de Egresos: {total_egresos:.2f}")
-            #st.write(f"Diferencia (Ingresos - Egresos): {diferencia:.2f}")
-
-            #Visualización de pastel para ingresos y egresos totales
-            #st.subheader('Distribución de Ingresos y Egresos')
-            #labels = 'Ingresos', 'Egresos'
-            #sizes = [total_ingresos, abs(total_egresos)] # Asegurarse que los egresos sean positivos para la visualización
-            #colors = ['green', 'red']
-            #explode = (0.1, 0)  # Explode la primera slice (Ingresos)
-
-            #fig1, ax1 = plt.subplots()
-            #ax1.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90, colors=colors)
-            #ax1.axis('equal')  # Equal aspect ratio asegura que la torta se dibuje como un círculo.
-            #st.pyplot(fig1)  # Usar st.pyplot() para mostrar la figura de Matplotlib
-
 
             # **13. Sección de Análisis Financiero en el sidebar**
             st.sidebar.header('Análisis Financiero')
