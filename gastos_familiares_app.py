@@ -1,20 +1,51 @@
 import streamlit as st
 import pandas as pd
+import calendar # Para obtener nombres de meses
+
+# Función auxiliar para mapear número de mes a nombre
+def obtener_nombre_mes(numero_mes):
+    try:
+        # Asegurarse de que es un entero
+        numero_mes_int = int(numero_mes)
+        # Usar calendar para obtener el nombre abreviado en español
+        # Nota: Esto depende de la configuración regional (locale) del sistema donde corre Streamlit.
+        # Si no funciona, podríamos necesitar instalar y configurar el locale explícitamente
+        # o usar un diccionario de mapeo manual.
+        # Intentaremos con calendar primero. Asegúrate de que tu sistema tenga locale español.
+        # import locale
+        # try:
+        #     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8') # o 'Spanish_Spain.1252' en Windows
+        # except locale.Error:
+        #     st.warning("Locale español no encontrado, usando nombres de mes en inglés.")
+        #     locale.setlocale(locale.LC_TIME, '') # Volver al default si falla
+
+        # return calendar.month_abbr[numero_mes_int]
+
+        # --- Alternativa Manual (más segura si locale falla) ---
+        meses_es = {
+            1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+            7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"
+        }
+        return meses_es.get(numero_mes_int, str(numero_mes_int)) # Devuelve número si no está en el dict
+    except (ValueError, TypeError):
+        return str(numero_mes) # Devolver como string si no es un número válido
 
 def main():
-    st.title('Análisis de Gastos por Año y Mes')
+    st.set_page_config(layout="wide") # Usar layout ancho para más espacio
+    st.title('Análisis Financiero Personal')
 
-    uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Sube tu archivo CSV de movimientos", type=["csv"])
 
     if uploaded_file is not None:
         try:
-            # 1. Leer el CSV
-            df = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+            # 1. Leer el CSV completo
+            df_original = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
 
-            # 2. Limpiar nombres de columnas
+            # --- Limpieza y Preparación Inicial (Común a todos los análisis) ---
+            df = df_original.copy() # Trabajar con una copia
             df.columns = df.columns.str.strip()
 
-            # 3. Definir los nombres originales
+            # Definir nombres originales
             importe_original_col = 'IMPORTE'
             tipo_column_name = 'TIPO'
             categoria_column_name = 'CATEGORÍA'
@@ -24,12 +55,12 @@ def main():
             dia_column_name = 'DIA'
             descripcion_column_name = 'CONCEPTO'
             comercio_column_name = 'COMERCIO'
-            cuenta_column_name = 'CUENTA' # Columna clave para el nuevo filtro
+            cuenta_column_name = 'CUENTA'
 
             # Nombre estandarizado para cálculos
             importe_calculo_col = 'Importe'
 
-            # 4. Validar columnas originales
+            # Validar columnas originales
             required_columns_original = [
                 importe_original_col, tipo_column_name, categoria_column_name,
                 subcategoria_column_name, anio_column_name, mes_column_name,
@@ -37,17 +68,15 @@ def main():
                 cuenta_column_name
             ]
             missing_columns = [col for col in required_columns_original if col not in df.columns]
-
             if missing_columns:
-                st.error(f"Error: Faltan las siguientes columnas esenciales: {', '.join(missing_columns)}")
-                st.info(f"Columnas detectadas: {df.columns.tolist()}")
+                st.error(f"Error: Faltan columnas esenciales: {', '.join(missing_columns)}")
                 return
 
-            # 5. Renombrar y convertir 'IMPORTE'
+            # Renombrar y convertir 'IMPORTE'
             df.rename(columns={importe_original_col: importe_calculo_col}, inplace=True)
             df[importe_calculo_col] = df[importe_calculo_col].astype(str).str.replace(',', '.').astype(float)
 
-            # 6. Crear columna 'Fecha'
+            # Crear columna 'Fecha'
             try:
                 df['Fecha'] = pd.to_datetime(
                     df[anio_column_name].astype(str) + '-' +
@@ -57,172 +86,188 @@ def main():
                 )
                 if df['Fecha'].isnull().any():
                     st.warning("Advertencia: Algunas fechas no pudieron ser convertidas.")
-            except ValueError as e:
-                st.error(f"Error crítico al convertir las columnas de fecha: {e}.")
+                    df.dropna(subset=['Fecha'], inplace=True) # Eliminar filas sin fecha válida
+            except (ValueError, KeyError) as e:
+                st.error(f"Error crítico al procesar fechas: {e}.")
                 return
-            except KeyError as e:
-                 st.error(f"Error: Falta una de las columnas de fecha ({e}).")
-                 return
 
-            # 7. Info general (opcional mostrar aquí)
-            # st.subheader("Información General del Archivo")
-            # st.write(f"Valores únicos en '{tipo_column_name}':", df[tipo_column_name].unique())
-            # st.write(f"Valores únicos en '{categoria_column_name}':", df[categoria_column_name].astype(str).unique())
-            # st.write(f"Valores únicos en '{cuenta_column_name}':", df[cuenta_column_name].astype(str).unique())
+            # Extraer año y mes (para todo el dataframe ahora)
+            df['Año'] = df['Fecha'].dt.year
+            df['Mes'] = df['Fecha'].dt.month
 
-            # 8. Filtrar gastos
+            # Rellenar NaNs en columnas clave (después de extraer año/mes)
+            fill_na_cols = [tipo_column_name, categoria_column_name, subcategoria_column_name, comercio_column_name, descripcion_column_name, cuenta_column_name]
+            for col in fill_na_cols:
+                if col in df.columns:
+                    df[col] = df[col].astype(str).fillna(f'SIN {col.upper()}')
+
+            # --- SECCIÓN 1: Análisis de Gastos (como antes) ---
+            st.header("Análisis Detallado de Gastos")
+
+            # Filtrar solo gastos para esta sección
             valores_gasto = ["GASTO"]
             df_gastos = df[df[tipo_column_name].isin(valores_gasto)].copy()
 
-            if df_gastos.empty:
-                st.warning("No se encontraron registros de tipo 'GASTO'.")
-                return
+            if not df_gastos.empty:
 
-            # 9. Extraer año y mes
-            df_gastos['Año'] = df_gastos['Fecha'].dt.year
-            df_gastos['Mes'] = df_gastos['Fecha'].dt.month
+                st.sidebar.header("Filtros de Gastos")
+                # Selección de Año para Gastos
+                años_gastos_disponibles = sorted([int(a) for a in df_gastos['Año'].dropna().unique()])
+                año_gastos_seleccionado = st.sidebar.selectbox("Año (Gastos):", años_gastos_disponibles, key='sel_año_gastos')
 
-            # Rellenar NaNs en columnas categóricas ANTES de usarlas en filtros/agrupaciones
-            fill_na_cols = [categoria_column_name, subcategoria_column_name, comercio_column_name, descripcion_column_name, cuenta_column_name]
-            for col in fill_na_cols:
-                 if col in df_gastos.columns:
-                       # Usar astype(str) para asegurar que no haya error con tipos mixtos antes de fillna
-                       df_gastos[col] = df_gastos[col].astype(str).fillna(f'SIN {col.upper()}')
+                df_gastos_año = df_gastos[df_gastos['Año'] == año_gastos_seleccionado]
 
+                if not df_gastos_año.empty:
+                    # Filtro Multiselección por CUENTA para Gastos
+                    cuentas_gastos_disponibles = sorted(df_gastos_año[cuenta_column_name].unique())
+                    cuentas_gastos_seleccionadas = st.sidebar.multiselect(
+                        "Cuentas (Gastos):",
+                        options=cuentas_gastos_disponibles,
+                        default=cuentas_gastos_disponibles,
+                        key='sel_cuenta_gastos'
+                    )
 
-            # --- SECCIÓN DE FILTROS PRINCIPALES ---
-            st.sidebar.header("Filtros Principales") # Mover filtros a la barra lateral
+                    if cuentas_gastos_seleccionadas:
+                        df_gastos_año_filtrado = df_gastos_año[df_gastos_año[cuenta_column_name].isin(cuentas_gastos_seleccionadas)].copy()
 
-            # 10. Selección de Año
-            años_disponibles = sorted([int(a) for a in df_gastos['Año'].dropna().unique()])
-            if not años_disponibles:
-                 st.warning("No hay años con gastos para analizar.")
-                 return
-            año_seleccionado = st.sidebar.selectbox("Año:", años_disponibles)
+                        if not df_gastos_año_filtrado.empty:
+                            # Mostrar Resumen y Detalle de Gastos (usando df_gastos_año_filtrado)
+                            st.subheader(f"Resumen ({año_gastos_seleccionado} - Cuentas: {', '.join(cuentas_gastos_seleccionadas)})")
+                            # (Código de tabla pivote y detalle de gastos aquí, usando df_gastos_año_filtrado)
+                            # ... (tabla pivote formateada) ...
+                            try:
+                                tabla_gastos_pivot = df_gastos_año_filtrado.pivot_table(
+                                    values=importe_calculo_col, index=categoria_column_name, columns='Mes',
+                                    aggfunc='sum', fill_value=0, margins=True, margins_name='Total' )
 
-            # 11. Filtrar DataFrame por el año seleccionado
-            df_año = df_gastos[df_gastos['Año'] == año_seleccionado]
+                                formato_euro_gasto = '{:,.0f} €'.format
+                                estilo_gasto = [
+                                     {'selector': 'th.col_heading, th.row_heading', 'props': [('background-color', '#6c757d'), ('color', 'white'), ('font-weight', 'bold')]},
+                                     {'selector': 'th.col_heading', 'props': [('text-align', 'center')]},
+                                     {'selector': 'th.row_heading', 'props': [('text-align', 'left')]},
+                                     {'selector': 'tr:last-child td, td:last-child', 'props': [('font-weight', 'bold'), ('background-color', '#f8f9fa')]} ]
+                                tabla_gasto_formateada = tabla_gastos_pivot.style.format(formato_euro_gasto).set_table_styles(estilo_gasto)
+                                st.dataframe(tabla_gasto_formateada, use_container_width=True)
 
-            if df_año.empty:
-                st.warning(f"No hay gastos registrados para el año {año_seleccionado}.")
-                return # Salir si no hay datos para el año
+                            except Exception as e_pivot_gasto:
+                                st.error(f"Error al crear tabla pivote de gastos: {e_pivot_gasto}")
 
-            # 12. **NUEVO: Filtro Multiselección por CUENTA**
-            cuentas_disponibles = sorted(df_año[cuenta_column_name].unique())
-            if not cuentas_disponibles:
-                 st.warning(f"No hay cuentas con gastos registrados para el año {año_seleccionado}.")
-                 return # Salir si no hay cuentas para filtrar
+                            # Detalle interactivo de gastos
+                            st.subheader("Detalle Interactivo de Gastos")
+                            categorias_gastos_filtradas = sorted(df_gastos_año_filtrado[categoria_column_name].unique())
+                            meses_gastos_filtrados = sorted(df_gastos_año_filtrado['Mes'].unique())
 
-            # st.multiselect va aquí, después de filtrar por año para que las opciones sean relevantes
-            cuentas_seleccionadas = st.sidebar.multiselect(
-                "Cuentas (Tags):",
-                options=cuentas_disponibles,
-                default=cuentas_disponibles # Todas seleccionadas por defecto
-            )
+                            if categorias_gastos_filtradas and meses_gastos_filtrados:
+                                col1_gasto_det, col2_gasto_det = st.columns(2)
+                                with col1_gasto_det:
+                                     categoria_gasto_sel = st.selectbox("Categoría Gasto:", categorias_gastos_filtradas, key='cat_gasto_det_sel')
+                                with col2_gasto_det:
+                                     mes_gasto_sel = st.selectbox("Mes Gasto:", meses_gastos_filtrados, key='mes_gasto_det_sel')
 
-            # 13. Filtrar df_año por las cuentas seleccionadas
-            if not cuentas_seleccionadas: # Si el usuario deselecciona todo
-                 st.warning("Selecciona al menos una cuenta para ver los datos.")
-                 # Opcionalmente, mostrar un dataframe vacío o no mostrar nada más
-                 return # Detener la ejecución aquí si no hay cuentas seleccionadas
+                                filtro_gasto_detalle = (df_gastos_año_filtrado[categoria_column_name] == categoria_gasto_sel) & (df_gastos_año_filtrado['Mes'] == mes_gasto_sel)
+                                df_gasto_detalle = df_gastos_año_filtrado[filtro_gasto_detalle]
 
-            # Aplicar el filtro de cuentas al DataFrame del año
-            df_año_filtrado = df_año[df_año[cuenta_column_name].isin(cuentas_seleccionadas)].copy()
-
-            # Verificar si quedaron datos después de filtrar por cuenta
-            if df_año_filtrado.empty:
-                 st.info(f"No se encontraron gastos para las cuentas seleccionadas en el año {año_seleccionado}.")
-                 return # Salir si el filtro de cuentas deja el dataframe vacío
-
-            # --- FIN SECCIÓN DE FILTROS PRINCIPALES ---
-
-
-            # --- MOSTRAR RESULTADOS (usar df_año_filtrado a partir de aquí) ---
-            st.subheader(f"Resumen de Gastos por Categoría y Mes ({año_seleccionado})")
-            st.caption(f"Mostrando datos para las cuentas: {', '.join(cuentas_seleccionadas)}")
-
-            # 14. Tabla pivote (ahora usa df_año_filtrado)
-            try:
-                tabla_gastos = df_año_filtrado.pivot_table(
-                    values=importe_calculo_col,
-                    index=categoria_column_name,
-                    columns='Mes',
-                    aggfunc='sum',
-                    fill_value=0,
-                    margins=True,
-                    margins_name='Total'
-                )
-
-                # (Formato y estilo de la tabla como antes)
-                formato_euro = '{:,.0f} €'.format
-                estilo = [
-                     {'selector': 'th.col_heading, th.row_heading', 'props': [('background-color', '#6c757d'), ('color', 'white'), ('font-weight', 'bold')]},
-                     {'selector': 'th.col_heading', 'props': [('text-align', 'center')]},
-                     {'selector': 'th.row_heading', 'props': [('text-align', 'left')]},
-                     {'selector': 'tr:last-child td, td:last-child', 'props': [('font-weight', 'bold'), ('background-color', '#f8f9fa')]}
-                ]
-                tabla_formateada = tabla_gastos.style.format(formato_euro).set_table_styles(estilo)
-                st.dataframe(tabla_formateada, use_container_width=True)
-
-            except Exception as e_pivot:
-                st.error(f"Error al crear la tabla pivote: {e_pivot}")
-                # st.write("Columnas disponibles en df_año_filtrado:", df_año_filtrado.columns.tolist()) # Ayuda a depurar
-
-            # 15. Detalle Interactivo (ahora usa df_año_filtrado)
-            st.subheader("Detalle de Gastos por Categoría y Mes")
-
-            # Obtener listas únicas DESPUÉS de filtrar por año y CUENTA
-            categorias_filtradas = sorted(df_año_filtrado[categoria_column_name].unique())
-            meses_filtrados = sorted(df_año_filtrado['Mes'].unique())
-
-            if not categorias_filtradas or not meses_filtrados:
-                st.info("No hay suficientes datos (categorías o meses) para mostrar el detalle interactivo con los filtros actuales.")
-                # return # Podrías salir aquí si prefieres no mostrar los selectores vacíos
-
-            # Usar columnas para los selectores de detalle
-            col1_det, col2_det = st.columns(2)
-            with col1_det:
-                 # Asegurar que hay opciones antes de crear el selectbox
-                 categoria_seleccionada = st.selectbox(
-                     f"Categoría ({categoria_column_name})",
-                     categorias_filtradas,
-                     key='cat_detalle_sel', # Añadir key por si acaso hay conflicto
-                     disabled=(not categorias_filtradas) # Deshabilitar si no hay opciones
-                 )
-            with col2_det:
-                 mes_seleccionado = st.selectbox(
-                     "Mes",
-                     meses_filtrados,
-                     key='mes_detalle_sel',
-                     disabled=(not meses_filtrados) # Deshabilitar si no hay opciones
-                 )
+                                if not df_gasto_detalle.empty:
+                                     st.write(f"**Detalle Gasto para {categoria_gasto_sel}, Mes {mes_gasto_sel}, Año {año_gastos_seleccionado}**")
+                                     tabla_gasto_desglose = df_gasto_detalle.groupby([
+                                         subcategoria_column_name, descripcion_column_name, comercio_column_name, cuenta_column_name, 'Fecha'
+                                     ])[importe_calculo_col].sum().reset_index()
+                                     tabla_gasto_desglose = tabla_gasto_desglose.sort_values(by=importe_calculo_col, ascending=True) # Gastos son negativos, ascendente = más negativo primero
+                                     tabla_gasto_desglose['Fecha'] = pd.to_datetime(tabla_gasto_desglose['Fecha']).dt.strftime('%Y-%m-%d')
+                                     tabla_gasto_desglose[importe_calculo_col] = tabla_gasto_desglose[importe_calculo_col].map('{:,.2f} €'.format)
+                                     st.dataframe(tabla_gasto_desglose, use_container_width=True)
+                                else:
+                                     st.info("No hay detalles para la selección de gasto actual.")
+                            else:
+                                st.info("No hay categorías o meses suficientes para el detalle de gastos con los filtros aplicados.")
+                        else:
+                            st.info("No hay gastos para las cuentas seleccionadas en este año.")
+                    else:
+                        st.warning("Selecciona al menos una cuenta en el filtro de gastos.")
+                else:
+                    st.info(f"No hay gastos registrados para el año {año_gastos_seleccionado}.")
+            else:
+                st.info("No se encontraron registros de tipo 'GASTO' en el archivo.")
 
 
-            # Filtrar para el detalle usando df_año_filtrado
-            if categorias_filtradas and meses_filtrados: # Solo proceder si hay opciones válidas
-                 filtro_detalle = (df_año_filtrado[categoria_column_name] == categoria_seleccionada) & (df_año_filtrado['Mes'] == mes_seleccionado)
-                 df_detalle = df_año_filtrado[filtro_detalle]
+            # --- SECCIÓN 2: Análisis P&L Cuenta Familiar (EVO) ---
+            st.header("Análisis P&L - Cuenta Familiar (EVO)")
 
-                 if not df_detalle.empty:
-                     st.write(f"**Detalle para {categoria_seleccionada} en el mes {mes_seleccionado} del año {año_seleccionado} (Cuentas: {', '.join(cuentas_seleccionadas)})**")
-                     tabla_desglose = df_detalle.groupby([
-                         subcategoria_column_name,
-                         descripcion_column_name,
-                         comercio_column_name,
-                         cuenta_column_name,
-                         'Fecha'
-                     ])[importe_calculo_col].sum().reset_index()
+            # Filtrar solo transacciones de la cuenta EVO
+            df_evo = df[df[cuenta_column_name] == 'EVO'].copy()
 
-                     tabla_desglose = tabla_desglose.sort_values(by=importe_calculo_col, ascending=True)
+            if df_evo.empty:
+                st.warning("No se encontraron transacciones para la cuenta 'EVO'.")
+            else:
+                st.sidebar.header("Filtro P&L (EVO)")
+                # Selección de Año para P&L (independiente del de gastos)
+                años_evo_disponibles = sorted([int(a) for a in df_evo['Año'].dropna().unique()])
+                if not años_evo_disponibles:
+                    st.warning("No hay años con transacciones para la cuenta 'EVO'.")
+                else:
+                    año_pl_seleccionado = st.sidebar.selectbox("Año (P&L):", años_evo_disponibles, key='sel_año_pl')
 
-                     tabla_desglose['Fecha'] = pd.to_datetime(tabla_desglose['Fecha']).dt.strftime('%Y-%m-%d')
-                     tabla_desglose[importe_calculo_col] = tabla_desglose[importe_calculo_col].map('{:,.2f} €'.format)
+                    # Filtrar df_evo por el año seleccionado para P&L
+                    df_evo_año = df_evo[df_evo['Año'] == año_pl_seleccionado]
 
-                     st.dataframe(tabla_desglose, use_container_width=True)
-                 else:
-                     st.info(f"No se encontraron gastos detallados para '{categoria_seleccionada}' en el mes {mes_seleccionado} del año {año_seleccionado} con las cuentas seleccionadas.")
-            elif not df_año_filtrado.empty:
-                 st.info("No hay datos de categorías o meses para la selección actual de año y cuenta.")
+                    if df_evo_año.empty:
+                         st.info(f"No hay transacciones en la cuenta 'EVO' para el año {año_pl_seleccionado}.")
+                    else:
+                         # Calcular Ingresos Mensuales
+                         tipos_ingreso = ['TRASPASO', 'INGRESO', 'REEMBOLSO', 'INGRESO'] # Añadir otros tipos si aplican como ingreso
+                         df_ingresos = df_evo_año[df_evo_año[tipo_column_name].isin(tipos_ingreso)]
+                         ingresos_mensuales = df_ingresos.groupby('Mes')[importe_calculo_col].sum()
+
+                         # Calcular Egresos Mensuales (Gastos)
+                         tipos_egreso = ['GASTO']
+                         df_egresos = df_evo_año[df_evo_año[tipo_column_name].isin(tipos_egreso)]
+                         # Sumar los importes (que son negativos) y luego tomar el valor absoluto o multiplicar por -1 para P&L
+                         egresos_mensuales_sum = df_egresos.groupby('Mes')[importe_calculo_col].sum()
+                         egresos_mensuales_abs = egresos_mensuales_sum.abs() # Usar valor absoluto para mostrar/graficar egresos como positivos
+                         # O egresos_mensuales_abs = egresos_mensuales_sum * -1
+
+                         # Crear DataFrame de P&L
+                         df_pl = pd.DataFrame({
+                             'Ingresos': ingresos_mensuales,
+                             'Egresos': egresos_mensuales_abs # Usar el valor absoluto aquí
+                         })
+                         df_pl = df_pl.fillna(0) # Rellenar meses sin ingresos o egresos con 0
+
+                         # Calcular Resultado (Ingresos - Egresos)
+                         df_pl['Resultado'] = df_pl['Ingresos'] - df_pl['Egresos']
+
+                         # Añadir fila de Totales
+                         total_pl = df_pl.sum()
+                         total_pl.name = 'Total'
+                         df_pl = pd.concat([df_pl, total_pl.to_frame().T])
+
+                         # Formatear para la tabla
+                         # Renombrar índice (número de mes) a nombre de mes
+                         df_pl.index = df_pl.index.map(obtener_nombre_mes)
+                         # Formato Euros
+                         formato_euro_pl = '{:,.2f} €'.format # 2 decimales para P&L
+                         df_pl_formateado = df_pl.style.format(formato_euro_pl) \
+                                               .applymap(lambda x: 'color: green' if x > 0 else ('color: red' if x < 0 else 'color: black'), subset=['Resultado']) \
+                                               .set_properties(**{'text-align': 'right'})
+
+                         st.subheader(f"Tabla P&L Mensual ({año_pl_seleccionado}) - Cuenta EVO")
+                         st.dataframe(df_pl_formateado, use_container_width=True)
+
+                         # Preparar datos para el gráfico (sin la fila Total y con índice numérico para ordenar)
+                         df_pl_chart = df_pl.drop('Total')
+                         try:
+                              # Intentar convertir índice (nombres de mes) de nuevo a número para ordenar el gráfico
+                              mes_num_map = {v: k for k, v in meses_es.items()} # Invertir el mapeo manual
+                              df_pl_chart.index = df_pl_chart.index.map(mes_num_map.get)
+                              df_pl_chart = df_pl_chart.sort_index()
+                         except:
+                              # Si falla la conversión o el sort, al menos mostrar el gráfico
+                              st.warning("No se pudo ordenar el gráfico por mes.")
+                              pass # Continuar sin ordenar
+
+                         st.subheader(f"Gráfico P&L Mensual ({año_pl_seleccionado}) - Cuenta EVO")
+                         # Usar solo Ingresos y Egresos para el gráfico
+                         st.line_chart(df_pl_chart[['Ingresos', 'Egresos']])
 
 
         # (Manejo de errores como antes)
@@ -234,11 +279,8 @@ def main():
              st.error("Error: No se pudo parsear el archivo CSV. Verifica el formato y el separador (';').")
         except KeyError as e:
              st.error(f"Error de columna: No se encontró la columna '{e}'. Verifica los nombres en tu archivo CSV.")
-             # Intenta mostrar las columnas detectadas si es posible
-             try:
-                 st.info(f"Columnas detectadas al inicio: {df.columns.tolist()}")
-             except NameError: # df puede no estar definido si falla la lectura inicial
-                 pass
+             try: st.info(f"Columnas detectadas: {df.columns.tolist()}")
+             except NameError: pass
         except Exception as e:
             st.error(f"Ocurrió un error inesperado: {e}")
             import traceback
@@ -246,7 +288,7 @@ def main():
             st.code(traceback.format_exc())
 
     else:
-        st.info("Por favor, sube tu archivo CSV de gastos para comenzar el análisis.")
+        st.info("Por favor, sube tu archivo CSV para comenzar el análisis.")
 
 if __name__ == "__main__":
     main()
