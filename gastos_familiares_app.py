@@ -219,7 +219,7 @@ def main():
                            else: st.info("No hay gastos para la selección de cuentas/año.")
                       else: st.warning("Seleccione cuentas para el análisis de gastos.")
                  else: st.info(f"No hay gastos para el año {año_g_sel}.")
-            else: st.info("No hay registros de tipo GASTO.")
+             else: st.info("No hay registros de tipo GASTO.")
 
 
         # --- PESTAÑA 2: P&L ---
