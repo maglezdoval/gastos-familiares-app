@@ -70,9 +70,9 @@ def main():
                  return
 
             # 7. Info general
-            st.subheader("Información General del Archivo")
-            st.write(f"Valores únicos en '{tipo_column_name}':", df[tipo_column_name].unique())
-            st.write(f"Valores únicos en '{categoria_column_name}':", df[categoria_column_name].astype(str).unique())
+           # st.subheader("Información General del Archivo")
+           # st.write(f"Valores únicos en '{tipo_column_name}':", df[tipo_column_name].unique())
+           # st.write(f"Valores únicos en '{categoria_column_name}':", df[categoria_column_name].astype(str).unique())
 
             # 8. Filtrar gastos
             valores_gasto = ["GASTO"]
