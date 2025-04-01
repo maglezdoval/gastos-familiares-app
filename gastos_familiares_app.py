@@ -220,7 +220,8 @@ def main():
                  # Filtros para la edición
                  col_f1, col_f2, col_f3 = st.columns([1,1,2])
                  with col_f1: show_uncat_edit = st.checkbox("Mostrar solo sin categorizar", value=(num_uncategorized > 0), key='chk_uncat_edit')
-                 with col_f2: year_edit_opts = ["Todos"] + sorted([int(a) for a in df['Año'].dropna().unique()])
+                 with col_f2: 
+                              year_edit_opts = ["Todos"] + sorted([int(a) for a in df['Año'].dropna().unique()])
                               year_edit_sel = st.selectbox("Año:", year_edit_opts, key='sel_año_edit')
                  with col_f3: txt_edit_filter = st.text_input("Buscar en Descripción:", key='txt_edit_filter')
 
