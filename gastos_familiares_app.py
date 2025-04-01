@@ -355,32 +355,65 @@ def main():
 
             # --- PESTAÑA 3: Categorizar ---
             with tab_categorizar:
+                # ... (Cabecera y detección de sin categorizar como antes) ...
                 st.header("Revisión y Categorización de Transacciones")
                 if num_uncategorized > 0:
                     st.info(f"Hay {num_uncategorized} transacciones con '{placeholder_cat}' o '{placeholder_sub}'.")
-                    # Botón para Sugerir
+
+                    # --- Botón para Sugerir (CON CORRECCIÓN) ---
                     if st.button("🤖 Sugerir Categorías para Sin Asignar", key="suggest_cats"):
                         suggestions_applied_count = 0
-                        df_to_suggest_on = st.session_state.edited_df # Trabajar sobre el df de sesión
-                        indices_to_update = df_to_suggest_on[uncategorized_mask].index
-                        # Iterar directamente sobre los índices a actualizar
-                        for index in indices_to_update:
-                            row_to_process = df_to_suggest_on.loc[index]
-                            suggested_cat, suggested_subcat = suggest_category(row_to_process, descripcion_column_name, importe_calculo_col, categoria_column_name, subcategoria_column_name)
-                            applied_change = False
-                            if suggested_cat and df_to_suggest_on.loc[index, categoria_column_name] == placeholder_cat:
-                                df_to_suggest_on.loc[index, categoria_column_name] = suggested_cat
-                                applied_change = True
-                            if suggested_subcat and df_to_suggest_on.loc[index, subcategoria_column_name] == placeholder_sub:
-                                if applied_change or (suggested_cat is None and df_to_suggest_on.loc[index, categoria_column_name] != placeholder_cat):
-                                     df_to_suggest_on.loc[index, subcategoria_column_name] = suggested_subcat
-                                     applied_change = True
-                            if applied_change: suggestions_applied_count += 1
+                        # Trabajar sobre una copia para aplicar sugerencias
+                        df_suggest = st.session_state.edited_df.copy()
 
+                        # --- !! CORRECCIÓN: Asegurar que 'importe' existe antes del bucle !! ---
+                        if importe_original_col in df_suggest.columns:
+                            df_suggest.rename(columns={importe_original_col: importe_calculo_col}, inplace=True)
+                        elif importe_calculo_col not in df_suggest.columns:
+                            st.error(f"Error crítico: No se encuentra la columna de importe ('{importe_calculo_col}') para sugerir.")
+                            st.stop() # Detener ejecución del callback del botón
+                        # Opcional: Verificar también si es numérico aquí, aunque ya debería serlo
+                        if not pd.api.types.is_numeric_dtype(df_suggest[importe_calculo_col]):
+                             st.warning("La columna de importe no es numérica antes de sugerir. Intentando convertir...")
+                             try:
+                                 df_suggest[importe_calculo_col] = df_suggest[importe_calculo_col].astype(str).str.replace(',', '.', regex=False).astype(float)
+                             except ValueError:
+                                  df_suggest[importe_calculo_col] = pd.to_numeric(df_suggest[importe_calculo_col].astype(str).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
+
+                        # Recalcular máscara sobre la copia asegurada
+                        current_uncategorized_mask = (df_suggest[categoria_column_name] == placeholder_cat) | (df_suggest[subcategoria_column_name] == placeholder_sub)
+                        indices_to_update = df_suggest[current_uncategorized_mask].index
+                        # --- Fin CORRECCIÓN ---
+
+                        # Iterar sobre los índices a actualizar
+                        for index in indices_to_update:
+                            row_to_process = df_suggest.loc[index] # Usar la copia df_suggest
+                            suggested_cat, suggested_subcat = suggest_category(
+                                row_to_process, # Pasar la fila de la copia
+                                descripcion_column_name,
+                                importe_calculo_col, # Pasar el nombre 'importe'
+                                categoria_column_name,
+                                subcategoria_column_name
+                            )
+                            # --- Lógica para aplicar sugerencias (sin cambios) ---
+                            applied_change = False
+                            if suggested_cat and df_suggest.loc[index, categoria_column_name] == placeholder_cat:
+                                df_suggest.loc[index, categoria_column_name] = suggested_cat
+                                applied_change = True
+                            # Si se aplicó categoría O si la categoría ya estaba bien, aplicar subcat si es placeholder
+                            if suggested_subcat and df_suggest.loc[index, subcategoria_column_name] == placeholder_sub:
+                                if applied_change or (suggested_cat is None and df_suggest.loc[index, categoria_column_name] != placeholder_cat):
+                                     df_suggest.loc[index, subcategoria_column_name] = suggested_subcat
+                                     applied_change = True # Asegurar que se marca como cambio
+                            if applied_change:
+                                suggestions_applied_count += 1
+                        # --- Fin lógica aplicar ---
+
+                        # Actualizar estado de sesión y re-ejecutar si hubo cambios
                         if suggestions_applied_count > 0:
-                            st.session_state.edited_df = df_to_suggest_on.copy()
+                            st.session_state.edited_df = df_suggest.copy() # Guardar la copia modificada
                             st.success(f"Se aplicaron sugerencias a {suggestions_applied_count} transacciones. Revísalas y aplica los cambios.")
-                            convert_df_to_csv.clear() # Limpiar cache por si cambian los datos de descarga
+                            convert_df_to_csv.clear()
                             st.experimental_rerun()
                         else:
                             st.info("No se encontraron nuevas sugerencias automáticas.")
