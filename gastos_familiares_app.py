@@ -114,8 +114,8 @@ def main():
             df_processing['Fecha'] = pd.to_datetime( df_processing[anio_column_name] + '-' + df_processing[mes_column_name] + '-' + df_processing[dia_column_name], format='%Y-%m-%d', errors='coerce')
             df_processing.dropna(subset=['Fecha'], inplace=True)
             df_processing['Año'] = df_processing['Fecha'].dt.year.astype(int); df_processing['Mes'] = df_processing['Fecha'].dt.month.astype(int)
-            placeholder_cat = 'SIN CATEGORÍA'; placeholder_sub = 'SIN SUBCATEGORÍA'
-            fill_cols = {categoria_column_name: placeholder_cat, subcategoria_column_name: placeholder_sub, comercio_column_name: 'SIN COMERCIO', cuenta_column_name: 'SIN CUENTA', tipo_column_name: 'SIN TIPO'}
+            placeholder_cat = ''; placeholder_sub = ''
+            fill_cols = {categoria_column_name: placeholder_cat, subcategoria_column_name: placeholder_sub, comercio_column_name: '', cuenta_column_name: '', tipo_column_name: ''}
             for col, placeholder in fill_cols.items():
                  if col in df_processing.columns: df_processing[col] = df_processing[col].astype(str).replace(['', 'nan', 'NaN', 'None', None], pd.NA).fillna(placeholder)
             learn_categories(df_processing, descripcion_column_name, categoria_column_name, subcategoria_column_name, importe_calculo_col, placeholder_cat, placeholder_sub)
