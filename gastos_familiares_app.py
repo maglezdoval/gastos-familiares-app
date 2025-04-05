@@ -3,15 +3,15 @@ import pandas as pd
 import calendar
 import traceback
 import re
-from collections import Counter, defaultdict # Añadir defaultdict
+from collections import Counter, defaultdict
 
-# --- Diccionario Global para Almacenar Conocimiento de Categorías ---
-category_knowledge = {
-    "keyword_map": {},
-    "amount_map": {}
-}
+# --- Diccionario Global ---
+category_knowledge = {"keyword_map": {}, "amount_map": {}}
 
-# --- Session State para Configuraciones ---
+# --- Session State Init ---
+if 'edited_df' not in st.session_state: st.session_state.edited_df = None
+if 'data_processed' not in st.session_state: st.session_state.data_processed = False
+if 'last_uploaded_filename' not in st.session_state: st.session_state.last_uploaded_filename = None
 if 'category_hierarchy' not in st.session_state: st.session_state.category_hierarchy = defaultdict(set)
 if 'comercio_to_category_map' not in st.session_state: st.session_state.comercio_to_category_map = {}
 
@@ -32,7 +32,7 @@ def convert_df_to_csv(df_to_convert):
     return df_download.to_csv(index=False, sep=';', decimal=',').encode('utf-8')
 
 def clean_text(t):
-    if not isinstance(t, str) or pd.isna(t): return ""
+    if not isinstance(t, str) or pd.isna(t): return "" # Siempre devuelve string
     t = t.lower(); t = re.sub(r'\b\d{4,}\b', '', t); t = re.sub(r'\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?', '', t); t = re.sub(r'[^\w\s]', ' ', t); t = re.sub(r'\s+', ' ', t).strip(); return t
 
 keywords_to_ignore = { 'pago', 'movil', 'en', 'compra', 'tarjeta', 'tarj', 'internet', 'comision', 'recibo', 'favor', 'de', 'la', 'el', 'los', 'las', 'a', 'con', 'sl', 'sa', 'sau', 's l', 'concepto', 'nº', 'ref', 'mandato', 'cuenta', 'gastos', 'varios', 'madrid', 'huelva', 'rozas', 'espanola', 'europe', 'fecha', 'num', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'transferencia', 'trf', 'bizum', 'liquidacin', 'contrato', 'impuesto', 'cotizacion', 'tgss', 'iban', 'swift', 'com', 'www', 'http', 'https', 'cliente', 'importe', 'saldo', 'valor', 'atm', 'reintegro', 'oficina', 'suc', 'sr', 'sra', 'dna', 'bill', 'pending', 'uber', 'comercial', 'petroleo', 'obo', 'inv', 'for', 'sueldo', 'salar', 'nombre', 'miguel', 'angel', 'gonzalez', 'doval', 'alicia', 'jimenez', 'corpa', 'ordenante', 'beneficiario' }
@@ -41,11 +41,13 @@ def learn_categories(df, concepto_col, cat_col, subcat_col, importe_col, placeho
     global category_knowledge, keywords_to_ignore; kw_counter = {}; amt_counter = {}
     df_cat = df[ (df[cat_col] != placeholder_cat) & (df[subcat_col] != placeholder_sub) & (~df[cat_col].isin(['TRASPASO', 'RECIBO'])) ].copy()
     if df_cat.empty: return
-    df_cat['clean'] = df_cat[concepto_col].apply(clean_text)
+    df_cat['clean'] = df_cat[concepto_col].apply(clean_text) # Aplica clean_text aquí
     for _, r in df_cat.iterrows():
         cat = r[cat_col]; sub = r[subcat_col]; imp = r[importe_col]
         amt_bin = int(round(imp / 10) * 10) if pd.notna(imp) and isinstance(imp, (int, float)) else 0
-        words = set(r['clean'].split()) - keywords_to_ignore
+        cleaned_text_val = r['clean'] # Usa la columna precalculada
+        if cleaned_text_val is None: cleaned_text_val = "" # Doble check por si acaso
+        words = set(cleaned_text_val.split()) - keywords_to_ignore # Split seguro
         for w in words:
             if len(w) < 4: continue
             kw_counter.setdefault(w, Counter())[(cat, sub)] += 1
@@ -54,6 +56,7 @@ def learn_categories(df, concepto_col, cat_col, subcat_col, importe_col, placeho
     category_knowledge["amount_map"] = {k: c.most_common(1)[0][0] for k, c in amt_counter.items() if c}
     st.sidebar.info(f"Aprendizaje: {len(category_knowledge['keyword_map'])} keywords.")
 
+# *** FUNCIÓN SUGGEST_CATEGORY CORREGIDA ***
 def suggest_category(row, concepto_col, importe_col, cat_col, subcat_col, com_col):
     global category_knowledge, keywords_to_ignore
     # --- 0. Mapeo Comercio -> Categoría ---
@@ -65,7 +68,7 @@ def suggest_category(row, concepto_col, importe_col, cat_col, subcat_col, com_co
 
     # --- 1. Reglas Explícitas ---
     concepto = row[concepto_col]; importe = row[importe_col]; concepto_lower = str(concepto).lower(); current_subcat_lower = str(row[subcat_col]).lower()
-    if "mercadona" in concepto_lower: return ('ALIMENTACIÓN', 'SUPERMERCADO'); # ... (resto de reglas) ...
+    if "mercadona" in concepto_lower: return ('ALIMENTACIÓN', 'SUPERMERCADO');
     if "carrefour" in concepto_lower: return ('ALIMENTACIÓN', 'SUPERMERCADO')
     if "dia supermercado" in concepto_lower or "dia s.a" in concepto_lower : return ('ALIMENTACIÓN', 'SUPERMERCADO')
     if "lidl" in concepto_lower: return ('ALIMENTACIÓN', 'SUPERMERCADO')
@@ -103,10 +106,12 @@ def suggest_category(row, concepto_col, importe_col, cat_col, subcat_col, com_co
     # ... etc ...
 
     # --- 2. Conocimiento Aprendido ---
-    cleaned_concepto = clean_text(concepto) # Siempre devuelve string
-    # *** CORRECCIÓN AQUÍ ***
-    words = set(cleaned_concepto.split()) - keywords_to_ignore # Primero split(), luego set()
-    # *** FIN CORRECCIÓN ***
+    cleaned_concepto = clean_text(concepto) # Llama a clean_text, que devuelve "" si falla
+    # *** DEFENSA ADICIONAL ANTES DE SPLIT ***
+    if cleaned_concepto is None: # Por si acaso clean_text fallara
+        cleaned_concepto = ""
+    # *** FIN DEFENSA ADICIONAL ***
+    words = set(cleaned_concepto.split()) - keywords_to_ignore # Ahora split es seguro
 
     amount_bin = int(round(importe / 10) * 10) if pd.notna(importe) and isinstance(importe, (int, float)) else 0
     best_suggestion = None
@@ -180,10 +185,9 @@ def main():
             for c, ph in fill_cols.items():
                  if c in df_processing.columns:
                        df_processing[c] = df_processing[c].astype(str).replace(['nan', 'NaN', 'None', '<NA>'], pd.NA).fillna(ph)
-                       if ph == '': df_processing[c] = df_processing[c].replace('', ph)
+                       if ph == '': df_processing[c] = df_processing[c].replace('', ph) # Reemplazar '' explícitamente si placeholder es ''
             mask_traspaso = df_processing[tipo] == 'TRASPASO'; df_processing.loc[mask_traspaso, cat] = 'TRASPASO'; df_processing.loc[mask_traspaso, subcat] = 'TRASPASO INTERNO'
             mask_recibo = df_processing[tipo] == 'RECIBO'; df_processing.loc[mask_recibo, cat] = 'RECIBO'; df_processing.loc[mask_recibo, subcat] = 'PAGO RECIBO'
-            # Derivar y guardar mapeos
             st.session_state.category_hierarchy = derive_category_hierarchy(df_processing, cat, subcat, ph_cat, ph_sub)
             st.session_state.comercio_to_category_map = derive_comercio_map(df_processing, com, cat, ph_cat)
             learn_categories(df_processing, desc, cat, subcat, imp_calc, ph_cat, ph_sub)
@@ -258,17 +262,17 @@ def main():
 
         with tab_categorizar:
             st.header("Revisión y Categorización")
-            cat_tab = cat; subcat_tab = subcat; desc_tab = desc; imp_calc_tab = imp_calc; imp_orig_tab = imp_orig; ph_cat_tab = ph_cat; ph_sub_tab = ph_sub; com_tab = com # Definir locales para botones
+            cat_tab = cat; subcat_tab = subcat; desc_tab = desc; imp_calc_tab = imp_calc; imp_orig_tab = imp_orig; ph_cat_tab = ph_cat; ph_sub_tab = ph_sub; com_tab = com # Definir locales
             if num_uncategorized > 0:
-                st.info(f"Hay {num_uncategorized} transacciones sin CATEGORÍA principal.")
+                st.info(f"Hay {num_uncategorized} trans. sin CATEGORÍA.")
                 if st.button("🤖 Sugerir CATEGORÍAS Faltantes", key="suggest_cats"):
                     suggestions_applied = 0; df_suggest = st.session_state.edited_df.copy()
-                    if imp_orig_tab in df_suggest.columns: df_suggest.rename(columns={imp_orig_tab: imp_calc_tab}, inplace=True) # Usar vars locales
+                    if imp_orig_tab in df_suggest.columns: df_suggest.rename(columns={imp_orig_tab: imp_calc_tab}, inplace=True)
                     if imp_calc_tab not in df_suggest.columns: raise KeyError("Falta importe")
                     if not pd.api.types.is_numeric_dtype(df_suggest[imp_calc_tab]): df_suggest[imp_calc_tab] = pd.to_numeric(df_suggest[imp_calc_tab].astype(str).str.replace(',', '.', regex=False), errors='coerce').fillna(0)
                     suggest_mask = (df_suggest[cat_tab] == ph_cat_tab); indices_to_update = df_suggest[suggest_mask].index
                     for index in indices_to_update:
-                        row = df_suggest.loc[index]; sugg_result = suggest_category(row, desc_tab, imp_calc_tab, cat_tab, subcat_tab, com_tab) # Pasar com_tab
+                        row = df_suggest.loc[index]; sugg_result = suggest_category(row, desc_tab, imp_calc_tab, cat_tab, subcat_tab, com_tab)
                         applied_c = False
                         if sugg_result is not None:
                            sugg_cat, sugg_sub = sugg_result
@@ -298,25 +302,24 @@ def main():
             edited_data = st.data_editor( df_display_edit, column_config=col_cfg, use_container_width=True, num_rows="dynamic", key='data_editor_main', hide_index=True, height=400 )
 
             if st.button("💾 Aplicar Cambios Editados", key="apply_manual_changes"):
-                cat_btn = cat; subcat_btn = subcat # Usar vars definidas fuera
+                cat_btn = cat; subcat_btn = subcat
                 changes_manual = 0; df_session = st.session_state.edited_df; edit_cols = [cat_btn, subcat_btn]
                 invalid_combinations = []; valid_hierarchy = st.session_state.category_hierarchy
-                temp_df_session = df_session.copy() # Copia temporal para aplicar y validar
+                temp_df_session = df_session.copy()
                 indices_edited = edited_data['original_index']
-
                 if indices_edited.is_unique:
                     temp_df_session.loc[indices_edited, edit_cols] = edited_data[edit_cols].values
                     for idx in indices_edited:
                         edited_cat = temp_df_session.loc[idx, cat_btn]; edited_subcat = temp_df_session.loc[idx, subcat_btn]
                         if edited_cat in valid_hierarchy and edited_subcat not in valid_hierarchy[edited_cat] and edited_subcat != ph_sub and edited_subcat != '':
-                            invalid_combinations.append({ "Índice": idx, "Concepto": temp_df_session.loc[idx, desc], "Categoría": edited_cat, "Subcategoría Inválida": edited_subcat, "Subcategorías Válidas": ", ".join(sorted(list(valid_hierarchy[edited_cat]))) if valid_hierarchy[edited_cat] else "Ninguna" })
+                            invalid_combinations.append({ "Índice": idx, "Concepto": temp_df_session.loc[idx, desc], "Cat": edited_cat, "SubCat Inválida": edited_subcat, "SubCats Válidas": ", ".join(sorted(list(valid_hierarchy[edited_cat]))) if valid_hierarchy[edited_cat] else "Ninguna" })
                     if not invalid_combinations:
-                        st.session_state.edited_df = temp_df_session.copy() # Guardar la copia validada
+                        st.session_state.edited_df = temp_df_session.copy()
                         changes_manual = len(indices_edited)
                         st.success(f"{changes_manual} filas actualizadas."); convert_df_to_csv.clear(); st.experimental_rerun()
                     else:
-                        st.error("Combinaciones Categoría/Subcategoría inválidas. Cambios NO aplicados."); st.dataframe(pd.DataFrame(invalid_combinations), use_container_width=True)
-                else: st.error("Error: Índices duplicados al aplicar.")
+                        st.error("Combinaciones Cat/SubCat inválidas. Cambios NO aplicados."); st.dataframe(pd.DataFrame(invalid_combinations), use_container_width=True)
+                else: st.error("Error: Índices duplicados.")
 
             st.subheader("Descargar Datos"); st.caption("Descarga el CSV con las últimas categorías.")
             csv_dl = convert_df_to_csv(st.session_state.edited_df)
@@ -325,15 +328,17 @@ def main():
         # --- PESTAÑA 4: Configuración ---
         with tab_config:
             st.header("⚙️ Configuración")
-            st.write("Gestiona las relaciones entre categorías, subcategorías y comercios.")
+            st.write("Gestiona relaciones Categoría/Subcategoría y Comercio/Categoría.")
             st.caption("Cambios guardados temporalmente en la sesión.")
+            cat_cfg = cat; subcat_cfg = subcat; com_cfg = com; ph_cat_cfg = ph_cat # Vars locales
 
-            # 1. Jerarquía Categoría -> Subcategoría
+            # 1. Jerarquía Cat -> Subcat
             st.subheader("Jerarquía Categoría -> Subcategorías")
+            st.write("Subcategorías encontradas para cada categoría:")
             hierarchy = st.session_state.category_hierarchy
             if hierarchy:
-                for category_cfg, subcategories_cfg in sorted(hierarchy.items()):
-                    with st.expander(f"**{category_cfg}** ({len(subcategories_cfg)} subcat.)"):
+                for category_cfg_item, subcategories_cfg in sorted(hierarchy.items()):
+                    with st.expander(f"**{category_cfg_item}** ({len(subcategories_cfg)} subcat.)"):
                         if subcategories_cfg: st.write(", ".join(sorted(list(subcategories_cfg))))
                         else: st.write("_(Ninguna subcategoría encontrada)_")
             else: st.info("No se pudo derivar jerarquía.")
@@ -341,25 +346,24 @@ def main():
             # 2. Editar Mapeo Comercio -> Categoría
             st.subheader("Asignar Categoría por Defecto a Comercios")
             comercio_map = st.session_state.comercio_to_category_map
-            # Usar df (el procesado de sesión) para obtener opciones actuales
-            all_comercios = sorted([c for c in df[com].unique() if c != ''])
-            all_categories_cfg = sorted([c for c in df[cat].unique() if c != ph_cat])
-            comercio_config_list = [{"COMERCIO": c, "CATEGORÍA Asignada": comercio_map.get(c, None)} for c in all_comercios]
-            df_comercio_config = pd.DataFrame(comercio_config_list)
-            comercio_editor_config = {
+            all_comercios = sorted([c for c in df[com_cfg].unique() if c != ''])
+            all_categories_cfg = sorted([c for c in df[cat_cfg].unique() if c != ph_cat_cfg])
+            comercio_cfg_list = [{"COMERCIO": c, "CATEGORÍA Asignada": comercio_map.get(c, None)} for c in all_comercios]
+            df_comercio_cfg = pd.DataFrame(comercio_cfg_list)
+            comercio_editor_cfg = {
                 "COMERCIO": st.column_config.TextColumn("Comercio", disabled=True),
                 "CATEGORÍA Asignada": st.column_config.SelectboxColumn("Cat. por Defecto", options=[None] + all_categories_cfg, required=False) }
 
             st.info("💡 Edita 'Cat. por Defecto' para asignar/cambiar.")
-            edited_comercio_data = st.data_editor(df_comercio_config, column_config=comercio_editor_config, key="comercio_cfg_editor", hide_index=True, use_container_width=True, num_rows="fixed")
+            edited_comercio_data = st.data_editor(df_comercio_cfg, column_config=comercio_editor_cfg, key="comercio_cfg_editor", hide_index=True, use_container_width=True, num_rows="fixed")
 
             if st.button("💾 Guardar Mapeo de Comercios", key="save_comercio_map"):
                 new_map = {row["COMERCIO"]: row["CATEGORÍA Asignada"] for _, row in edited_comercio_data.iterrows() if row["CATEGORÍA Asignada"] is not None and row["CATEGORÍA Asignada"] != ''}
-                # Comparar diccionarios para ver si hubo cambios reales
                 if new_map != st.session_state.comercio_to_category_map:
                     st.session_state.comercio_to_category_map = new_map
-                    st.success("Mapeo Comercio -> Categoría actualizado en sesión.")
-                    # No se necesita rerun aquí, la sugerencia usará el mapa actualizado
+                    st.success("Mapeo Comercio -> Categoría actualizado.")
+                    # Actualizar también la jerarquía por si se asignó una categoría nueva a un comercio
+                    st.session_state.category_hierarchy = derive_category_hierarchy(st.session_state.edited_df, cat_cfg, subcat, ph_cat, ph_sub) # Usar subcat original aquí
                 else: st.info("No se detectaron cambios en el mapeo.")
 
     # --- Manejo de Errores Final ---
