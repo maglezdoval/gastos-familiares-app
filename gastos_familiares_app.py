@@ -75,6 +75,7 @@ def suggest_category(row, concepto_col, importe_col, cat_col, subcat_col, com_co
 
     # --- 2. Conocimiento Aprendido (si no hay reglas ni mapeo) ---
     cleaned = clean_text(concepto); words = set(cleaned).split() - keywords_to_ignore
+    words = set(cleaned_concepto.split()) - keywords_to_ignore # Primero split(), luego set()
     amt_bin = int(round(importe / 10) * 10) if pd.notna(importe) and isinstance(importe, (int, float)) else 0
     best_sugg = None
     for w in words:
